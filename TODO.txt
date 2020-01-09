@@ -1,0 +1,2 @@
+* Add more rules to check.
+* Add compatibility for Debian, ArchLinux & RedHat.
