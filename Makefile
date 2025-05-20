@@ -1,38 +1,59 @@
-# Compiler and flags.
+MAKEFLAGS += --silent --no-print-directory
+
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c99
+DEBUG_CFLAGS = -Wall -Wextra -g -std=c99
 LDFLAGS =
+TARGET = artifacts/slacksecchk
 SRCS = src/slacksecchk.c src/rules.c
-OBJS = $(SRCS:.c=.o)
-TARGET = slacksecchk
+OBJS = artifacts/slacksecchk.o artifacts/rules.o
 
-# Default target.
-all: $(TARGET)
+# Debug toggle
+debug: CFLAGS = $(DEBUG_CFLAGS)
+debug:
+	@echo "Building in debug mode..."
+	$(MAKE) all
 
-# Link object files into the final executable.
+all:
+	@echo "Starting build..."
+	$(MAKE) $(TARGET)
+
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
+	@echo "Linking executable..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-# Compile source files into object files.
-%.o: %.c
+artifacts/slacksecchk.o: src/slacksecchk.c
+	@echo "Compiling slacksecchk..."
+	@mkdir -p artifacts
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Cleanup compiled files.
-clean:
-	rm -f $(OBJS) $(TARGET)
+artifacts/rules.o: src/rules.c
+	@echo "Compiling rules..."
+	@mkdir -p artifacts
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Run the test script.
+clean:
+	@echo "Cleaning..."
+	rm -f ./test_output.txt
+	rm -rf artifacts/*
+	rm -rf artifacts
+
 test: $(TARGET)
+	@echo "Running tests..."
+	chmod +x ./test.sh
 	./test.sh
 
-# Install the binary (optional).
 install: $(TARGET)
+	@echo "Installing binary..."
 	mkdir -p /usr/local/bin
-	cp $(TARGET) /usr/local/bin/
-	chmod +x /usr/local/bin/$(TARGET)
+	cp $(TARGET) /usr/local/bin/slacksecchk
+	chmod +x /usr/local/bin/slacksecchk
 
-# Uninstall the binary (optional).
 uninstall:
-	rm -f /usr/local/bin/$(TARGET)
+	@echo "Uninstalling binary..."
+	rm -f /usr/local/bin/slacksecchk
 
-.PHONY: all clean test install uninstall
+usage:
+	@echo "Usage: make [all | clean | test | install | uninstall | debug]"
+
+.PHONY: all clean test install uninstall debug usage
