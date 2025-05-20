@@ -1,3 +1,9 @@
+slacksecchk 1.0.2.2 - 2025-5-20
+-------------------------
+* Improve E2E test.
+* Improve makefile config.
+* Cleanup.
+
 slacksecchk 1.0.0.1 - 2020-1-9
 -------------------------
 * Initial release.
