@@ -38,5 +38,8 @@ jobs:
       - name: Compile
         run: make
 
+      - name: Make test executable
+        run: chmod +x ./test.sh
+
       - name: Test
         run: ./test.sh
