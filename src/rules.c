@@ -501,14 +501,14 @@ void check_open_ports() {
 }
 
 /**
- * @brief CIS: Verify secure bootloader configuration.
+ * @brief CIS: Verify secure GRUB bootloader configuration.
  */
 void check_bootloader_password() {
-   printf("\n[CIS] Checking bootloader password... ");
+   printf("\n[CIS] Checking GRUB bootloader password... ");
    FILE *file = fopen("/boot/grub/grub.cfg", "r");
 
    if (file == NULL) {
-      printf(COLOR_YELLOW "Notice: Bootloader configuration file not found.\n" COLOR_RESET);
+      printf(COLOR_YELLOW "Notice: GRUB bootloader configuration file not found.\n" COLOR_RESET);
       return;
    }
 
@@ -526,7 +526,7 @@ void check_bootloader_password() {
    fclose(file);
 
    if (!password_found) {
-      printf(COLOR_RED "FAILED! Bootloader password is not set.\n" COLOR_RESET);
+      printf(COLOR_RED "FAILED! GRUB bootloader password is not set.\n" COLOR_RESET);
    }
 }
 

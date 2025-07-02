@@ -33,7 +33,7 @@ This tool is specifically tailored for **Slackware Linux**, leveraging its uniqu
 2. Compile the program:
 
 `make clean`: Removes all compiled files for a fresh build.
-`make`: Compiles the program without errors or warnings.
+`make` or `make debug`: Compiles the program without errors or warnings.
 `make install`: Installs the tool system-wide for easy access.
 `make uninstall`: Removes the tool from system.
 
@@ -42,13 +42,14 @@ This tool is specifically tailored for **Slackware Linux**, leveraging its uniqu
 Run with following command:
 
 ```bash
+chmod +x ./slacksecchk
 ./slacksecchk
 ```
 
 Or if installed as system-wide:
 
 ```bash
-slacksecchk
+sudo slacksecchk
 ```
 
 The tool will output detailed information about each security check, including:

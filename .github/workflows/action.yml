@@ -39,10 +39,4 @@ jobs:
         run: make
 
       - name: Test
-        run: |
-          if [ -f ./slacksecchk ] && [ -x ./slacksecchk ]; then
-            echo "Test passed."
-          else
-            echo "Test failed."
-            exit 1
-          fi
+        run: ./test.sh
