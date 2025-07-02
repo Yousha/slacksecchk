@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Enable strict mode: Abort on errors, unset variables, and pipe failures.
+set -o nounset  # Exit if an unbound variable is used.
+set -o errexit  # Exit if any command fails.
+set -o pipefail # Fail pipelines if any command in the pipeline fails.
+
+# Environment / locale settings.
+LANG=C
+LC_ALL=C
+
 # Compile the program.
 echo "Compiling SlackSecChk..."
 gcc -Wall -Wextra -O2 -o slacksecchk src/slacksecchk.c src/rules.c
