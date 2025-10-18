@@ -68,6 +68,18 @@ CIS: OK: No unnecessary packages found.
 CIS Check complete.
 ```
 
+Build([makefile](Makefile)) key targets:
+
+| Target | Dependencies | Action | Notes |
+| :--- | :--- | :--- | :--- |
+| `all` | `$(TARGET)` | Main build target. Executes compilation and linking process. |
+| `debug` | `all` | Sets `CFLAGS` to `$(DEBUG_CFLAGS)` and calls `all` target. | Allows for easy switching to a debug build. |
+| `clean` | (None) | Removes test output file, object files, and `artifacts` directory. | Good for resetting build environment. |
+| `test` | `$(TARGET)` | Runs **`test.sh`** script after ensuring executable is built and has execution permissions. | This matches corresponding step in your GitHub Actions workflow. |
+| `install` | `$(TARGET)` | Copies compiled executable to `/usr/local/bin/slacksecchk`. | A standard location for locally installed executables. |
+| `uninstall` | (None) | Removes executable from `/usr/local/bin`. | |
+| `usage` | (None) | Prints a simple instruction message. | |
+
 ## Testing
 
 A simple test script to verify functionality of tool:

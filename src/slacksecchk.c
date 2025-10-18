@@ -1,15 +1,15 @@
 /**
  * Name: SlackSecChk
  * Description: A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benchmarks
- * Version: 1.0.0.1
+ * Version: 1.0.3.3
  * Locale: en_International
- * Last update: 2020
+ * Last update: 2025
  * Architecture: 64bit
  * API: libc 2.31
  * Compiler: GCC 10.1.*
  * Builder: CMake 3.18.*
  * License: GPL-3.0
- * Copyright: Copyright (c) 2020 Yousha Aleayoub.
+ * Copyright: Copyright (c) 2025 Yousha Aleayoub.
  * Producer: Yousha Aleayoub
  * Maintainer: Yousha Aleayoub
  * Contact: yousha.a@hotmail.com
@@ -26,7 +26,7 @@
  */
 int main() {
    printf("\n");
-   printf("slacksecchk 1.0.0.1\n");
+   printf("slacksecchk 1.0.3.3\n");
    printf("slacksecchk: Auditing system security...\n");
    check_file_permissions("/etc/passwd", 0644);
    check_file_permissions("/etc/shadow", 0600);

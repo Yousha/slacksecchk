@@ -36,7 +36,10 @@ void check_file_permissions(const char *filename, mode_t expected_mode) {
  * @brief CIS: Checks if log files exist and have proper permissions.
  */
 void check_log_files() {
-   check_file_permissions("/var/log/auth.log", 0600);
+   // Slackware defaults
+   check_file_permissions("/var/log/messages", 0600);
+   check_file_permissions("/var/log/secure", 0600);
+   check_file_permissions("/var/log/maillog", 0600);
    check_file_permissions("/var/log/syslog", 0644);
    check_file_permissions("/var/log/messages", 0644);
 }
