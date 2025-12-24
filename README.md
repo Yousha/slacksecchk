@@ -1,12 +1,12 @@
 # SlackSecChk
 
-A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benchmarks
+A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benchmarks.
 
 [![Compile and Test](https://github.com/Yousha/slacksecchk/actions/workflows/action.yml/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/action.yml) [![Dependabot Updates](https://github.com/Yousha/slacksecchk/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/dependabot/dependabot-updates) [![CodeQL](https://github.com/Yousha/slacksecchk/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/github-code-scanning/codeql)
 
 ## Features
 
-* Checks critical file permissions (e.g., `/etc/passwd`, `/etc/shadow`).
+* Checks critical files permissions.
 * Verifies password quality settings.
 * Ensures unnecessary services are disabled using Slackware's SysV Init scripts.
 * Identifies and warns about unnecessary packages installed on system using `/var/log/packages`.
@@ -17,8 +17,12 @@ A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benc
 
 ## Overview
 
-The **SlackSecChk** is a security auditing tool designed to verify system configurations against CIS benchmarks, some NSA, and some DISA STIG rules. It helps identify potential vulnerabilities and ensures that your Slackware Linux system adheres to best practices for security hardening.
+The **SlackSecChk** is a security auditing tool designed to verify system configurations against CIS standards, some NSA, and some DISA STIG rules. It helps identify potential vulnerabilities and ensures that your Slackware Linux system adheres to best practices for security hardening.
 This tool is specifically tailored for **Slackware Linux**, leveraging its unique package management system (`slackpkg`) and SysV Init scripts.
+
+## Screenshots
+
+![Screenshot](resources/images/screenshots/1.png)
 
 ## Installation
 
@@ -31,10 +35,10 @@ This tool is specifically tailored for **Slackware Linux**, leveraging its uniqu
 
 2. Compile the program:
 
-`make clean`: Removes all compiled files for a fresh build.
-`make` or `make debug`: Compiles the program without errors or warnings.
-`make install`: Installs the tool system-wide for easy access.
-`make uninstall`: Removes the tool from system.
+* `make clean`: Removes all compiled files for a fresh build.
+* `make` or `make debug`: Compiles program without errors or warnings.
+* `make install`: Installs tool system-wide for easy access.
+* _`make uninstall`: Removes tool from system._
 
 ## Usage
 
@@ -53,19 +57,9 @@ sudo slacksecchk
 
 The tool will output detailed information about each security check, including:
 
-* **OK**: Indicates the check passed successfully.
+* **OK**: Indicates that check passed successfully.
 * **Warning**: Indicates a potential issue that needs attention.
 * **Error**: Indicates a critical issue or inability to perform a check.
-
-Example output:
-
-```shell
-slacksecchk: Verifying system security...
-CIS: OK: /etc/passwd permissions are correctly set.
-CIS: Warning: Unnecessary service 'telnet' is enabled.
-CIS: OK: No unnecessary packages found.
-CIS Check complete.
-```
 
 ## Testing
 
@@ -93,19 +87,19 @@ Contributions are welcome! If you'd like to contribute, please follow these step
 git checkout -b feature-name
 ```
 
-3. Commit your changes:
+1. Commit your changes:
 
 ```bash
 git commit -m "Add feature or fix"
 ```
 
-4. Push to your fork:
+1. Push to your fork:
 
 ```bash
 git push origin feature-name
 ```
 
-5. Open a pull request on GitHub.
+1. Open a pull request on GitHub.
 
 ## License
 
