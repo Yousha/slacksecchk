@@ -6,15 +6,14 @@ A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benc
 
 ## Features
 
-* **File permissions**: Checks critical file permissions (e.g., `/etc/passwd`, `/etc/shadow`).
-* **Password policy**: Verifies password quality settings.
-* **Service management**: Ensures unnecessary services are disabled using Slackware's SysV Init scripts.
-* **Package auditing**: Identifies and warns about unnecessary packages installed on system using `/var/log/packages`.
-* **SSH configuration**: Validates secure SSH settings.
-* **Firewall rules**: Checks for active firewall configurations.
-* **Logging**: Ensures logging services (e.g., `syslog`) are running and properly configured.
-* **Customizable**: Easily extendable with additional CIS rules.
-* **etc...**
+* Checks critical file permissions (e.g., `/etc/passwd`, `/etc/shadow`).
+* Verifies password quality settings.
+* Ensures unnecessary services are disabled using Slackware's SysV Init scripts.
+* Identifies and warns about unnecessary packages installed on system using `/var/log/packages`.
+* Validates secure SSH settings.
+* Checks for active firewall configurations.
+* Ensures logging services (e.g., `syslog`) are running and properly configured.
+* Easily extendable with additional CIS rules.
 
 ## Overview
 
@@ -67,18 +66,6 @@ CIS: Warning: Unnecessary service 'telnet' is enabled.
 CIS: OK: No unnecessary packages found.
 CIS Check complete.
 ```
-
-Build([makefile](Makefile)) key targets:
-
-| Target | Dependencies | Action | Notes |
-| :--- | :--- | :--- | :--- |
-| `all` | `$(TARGET)` | Main build target. Executes compilation and linking process. |
-| `debug` | `all` | Sets `CFLAGS` to `$(DEBUG_CFLAGS)` and calls `all` target. | Allows for easy switching to a debug build. |
-| `clean` | (None) | Removes test output file, object files, and `artifacts` directory. | Good for resetting build environment. |
-| `test` | `$(TARGET)` | Runs **`test.sh`** script after ensuring executable is built and has execution permissions. | This matches corresponding step in your GitHub Actions workflow. |
-| `install` | `$(TARGET)` | Copies compiled executable to `/usr/local/bin/slacksecchk`. | A standard location for locally installed executables. |
-| `uninstall` | (None) | Removes executable from `/usr/local/bin`. | |
-| `usage` | (None) | Prints a simple instruction message. | |
 
 ## Testing
 
