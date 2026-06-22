@@ -33,7 +33,7 @@ jobs:
         run: find . -type f -name "*.yml" -exec yamllint {} \;
 
       - name: Checkout project
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Compile
         run: make
