@@ -6,6 +6,9 @@ slacksecchk 1.0.3.3 - Unreleased
 * Keep CI smoke tests from recursively scanning the runner host.
 * Correct build, install, and usage documentation.
 * Replace the invalid legacy checksum list with a reproducible checksum target.
+* Detect active firewall rules and verify Slackware firewall boot enablement.
+* Replace systemd-style service checks with Slackware rc-script and daemon checks.
+* Mark non-standard optional security frameworks as not applicable when absent.
 
 slacksecchk 1.0.2.2 - 2025-5-20
 -------------------------
