@@ -32,8 +32,7 @@ int main() {
    check_file_permissions("/etc/shadow", 0600);
    check_log_files();
    check_password_policy();
-   check_service("ssh");
-   check_service("firewalld");
+   check_service("sshd");
    check_disabled_service("telnet");
    check_disabled_service("vsftpd");
    check_user_password_expiration();
