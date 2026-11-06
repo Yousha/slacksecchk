@@ -20,8 +20,9 @@ artifacts/%.o: src/%.c src/rules.h
 	@echo "Compiling $<..."
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-debug: CFLAGS := $(DEBUG_CFLAGS)
-debug: clean all
+debug:
+	$(MAKE) clean
+	$(MAKE) CFLAGS="$(DEBUG_CFLAGS)" all
 
 clean:
 	@echo "Cleaning..."
