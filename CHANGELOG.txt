@@ -12,6 +12,7 @@ slacksecchk 1.0.3.3 - Unreleased
 * Detect runtime firewall policy and verify Slackware firewall boot hooks.
 * Check Slackware syslogd, ntpd, inetd, and rc-script service conventions.
 * Validate effective OpenSSH settings without the obsolete Protocol directive.
+* Add unit tests for iptables and nftables firewall-policy detection.
 
 slacksecchk 1.0.2.2 - 2025-5-20
 -------------------------
