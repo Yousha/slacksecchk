@@ -104,7 +104,7 @@ This CI job validates the build and basic execution path on Ubuntu; it does not 
 
 ## Slackware compatibility
 
-Slackware uses SysV-style startup scripts rather than systemd. Service checks therefore inspect daemon processes and `/etc/rc.d/rc.*` executable bits instead of calling `systemctl` or the generic `service` command. The firewall check detects active UFW, firewalld, nftables, or iptables filtering rules and separately verifies the relevant Slackware startup hook (`rc.firewall` or `rc.firewalld`). Slackware's standard `sysklogd` (`syslogd`) and `ntpd` are recognized. Optional components that are not part of a standard Slackware installation, such as auditd, SELinux/AppArmor, and Red Hat crypto-policies, are reported as not applicable when absent.
+Slackware uses SysV-style startup scripts rather than systemd. Service checks inspect daemon processes and `/etc/rc.d/rc.*` executable bits; legacy inetd-managed Telnet is checked in `/etc/inetd.conf`. The firewall check detects UFW, firewalld, nftables, or iptables at runtime and requires an effective DROP/REJECT policy or rule. It separately checks the executable Slackware boot hook (`rc.firewall`, or `rc.firewalld` for firewalld). Slackware's standard `sysklogd` (`syslogd`) and `ntpd` are recognized. SSH checks use the effective `sshd -T` configuration and do not require the obsolete `Protocol 2` directive. Optional components that are not part of a standard Slackware installation, such as auditd, SELinux/AppArmor, and Red Hat crypto-policies, are reported as not applicable when absent.
 
 ## Contributing
 
