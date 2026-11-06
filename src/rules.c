@@ -203,10 +203,17 @@ static int nft_filter_is_active(void) {
 
 static int slackware_firewall_startup_enabled(const char *backend) {
    if (strcmp(backend, "firewalld") == 0) {
-      /* SlackBuilds.org firewalld integration requires an rc.local start hook. */
+      /* SlackBuilds.org firewalld integration requires an executable rc.local hook. */
       return access("/etc/rc.d/rc.firewalld", X_OK) == 0 &&
+             access("/etc/rc.d/rc.local", X_OK) == 0 &&
              command_has_text("grep -E '^[[:space:]]*/etc/rc.d/rc.firewalld[[:space:]]+start([[:space:]]|$)' /etc/rc.d/rc.local 2>/dev/null",
                               "/etc/rc.d/rc.firewalld");
+   }
+   if (strcmp(backend, "ufw") == 0) {
+      /* UFW on Slackware is normally linked into rc.inet2 as rc.firewall -> rc.ufw. */
+      return access("/etc/rc.d/rc.firewall", X_OK) == 0 &&
+             (command_has_text("readlink /etc/rc.d/rc.firewall 2>/dev/null", "rc.ufw") ||
+              command_has_text("grep -E '(^|[[:space:]/])ufw([[:space:]]|$)' /etc/rc.d/rc.firewall 2>/dev/null", "ufw"));
    }
    /* Slackware rc.inet2 invokes an executable /etc/rc.d/rc.firewall. */
    return access("/etc/rc.d/rc.firewall", X_OK) == 0;
