@@ -83,7 +83,7 @@ The checksum manifest is generated from the current working tree. After running 
 sha256sum -c Checksums.sha256
 ```
 
-Regenerate the manifest after changing tracked files.
+Regenerate the manifest after changing project files.
 
 ## Testing
 
