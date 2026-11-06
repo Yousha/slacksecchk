@@ -33,6 +33,9 @@ jobs:
       - name: Clean
         run: make clean
 
+      - name: Check for non-Slackware service managers
+        run: if grep -R -nE 'systemctl|(^|[[:space:]])service[[:space:]]+[[:alnum:]_-]+[[:space:]]+(status|start|stop|restart)' src; then echo 'Use Slackware rc scripts instead of systemd/service commands.'; exit 1; fi
+
       - name: Build
         run: make
 
