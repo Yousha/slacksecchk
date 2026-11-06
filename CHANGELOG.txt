@@ -9,6 +9,9 @@ slacksecchk 1.0.3.3 - Unreleased
 * Detect active firewall rules and verify Slackware firewall boot enablement.
 * Replace systemd-style service checks with Slackware rc-script and daemon checks.
 * Mark non-standard optional security frameworks as not applicable when absent.
+* Detect runtime firewall policy and verify Slackware firewall boot hooks.
+* Check Slackware syslogd, ntpd, inetd, and rc-script service conventions.
+* Validate effective OpenSSH settings without the obsolete Protocol directive.
 
 slacksecchk 1.0.2.2 - 2025-5-20
 -------------------------
