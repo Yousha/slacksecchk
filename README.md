@@ -1,110 +1,103 @@
 # SlackSecChk
 
-A C tool to audit Slackware Linux(>=14) security against CIS, NSA, and DISA benchmarks.
+SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a selected set of system files and configuration settings against security-hardening recommendations.
 
 [![Compile and Test](https://github.com/Yousha/slacksecchk/actions/workflows/action.yml/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/action.yml) [![Dependabot Updates](https://github.com/Yousha/slacksecchk/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/dependabot/dependabot-updates) [![CodeQL](https://github.com/Yousha/slacksecchk/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/Yousha/slacksecchk/actions/workflows/github-code-scanning/codeql)
 
+> **Scope:** This project is an audit helper, not a complete CIS benchmark or NSA/DISA STIG compliance scanner. Its checks are selective and may require review for the target Slackware release and local system policy. A passing result does not certify compliance.
+
 ## Features
 
-* Checks critical files permissions.
-* Verifies password quality settings.
-* Ensures unnecessary services are disabled using Slackware's SysV Init scripts.
-* Identifies and warns about unnecessary packages installed on system using `/var/log/packages`.
-* Validates secure SSH settings.
-* Checks for active firewall configurations.
-* Ensures logging services (e.g., `syslog`) are running and properly configured.
-* Easily extendable with additional CIS rules.
+- Checks permissions on selected system files and directories.
+- Reviews selected password and account-policy settings.
+- Checks selected services, packages, logging, SSH, firewall, and kernel settings.
+- Uses Slackware package records and `/etc/rc.d` service scripts where applicable.
+- Provides a small C codebase intended to be extended with additional checks.
 
-## Overview
+## Requirements
 
-The **SlackSecChk** is a security auditing tool designed to verify system configurations against CIS standards, some NSA, and some DISA STIG rules. It helps identify potential vulnerabilities and ensures that your Slackware Linux system adheres to best practices for security hardening.
-This tool is specifically tailored for **Slackware Linux**, leveraging its unique package management system (`slackpkg`) and SysV Init scripts.
+- Slackware Linux (the checks are intended for Slackware; other distributions are not currently supported).
+- GCC and GNU Make to build from source.
+- Root privileges are recommended when running the audit so checks can read protected system files and inspect system state.
 
 ## Screenshots
 
-![Screenshot](resources/images/screenshots/1.png)
+![SlackSecChk screenshot](resources/images/screenshots/1.png)
 
-## Installation
+## Build
 
-1. Clone the repository:
+Clone the repository:
 
-   ```bash
-   git clone https://github.com/Yousha/slacksecchk.git
-   cd slacksecchk
-   ```
+```bash
+git clone https://github.com/Yousha/slacksecchk.git
+cd slacksecchk
+```
 
-2. Compile the program:
+Build the executable:
 
-* `make clean`: Removes all compiled files for a fresh build.
-* `make` or `make debug`: Compiles program without errors or warnings.
-* `make install`: Installs tool system-wide for easy access.
-* _`make uninstall`: Removes tool from system._
+```bash
+make
+```
+
+The executable is created at `artifacts/slacksecchk`.
+
+Useful Make targets:
+
+| Command | Description |
+| --- | --- |
+| `make` | Build the optimized executable. |
+| `make debug` | Clean and build with debug symbols. |
+| `make clean` | Remove generated build files. |
+| `make test` | Run the smoke tests (builds first if needed). |
+| `sudo make install` | Install to `/usr/local/bin/slacksecchk` (requires root privileges). |
+| `sudo make uninstall` | Remove the installed executable (requires root privileges). |
 
 ## Usage
 
-Run with following command:
+Run the executable from the repository:
 
 ```bash
-chmod +x ./slacksecchk
-./slacksecchk
+sudo ./artifacts/slacksecchk
 ```
 
-Or if installed as system-wide:
+Or, after installation:
 
 ```bash
 sudo slacksecchk
 ```
 
-The tool will output detailed information about each security check, including:
+The program prints the result of each configured check. Output labels have the following meaning:
 
-* **OK**: Indicates that check passed successfully.
-* **Warning**: Indicates a potential issue that needs attention.
-* **Error**: Indicates a critical issue or inability to perform a check.
+- **PASSED**: The check's configured condition was met.
+- **FAILED**: The check reported a condition that needs review.
+- **Notice/Error**: The check could not fully verify the condition or the required configuration was unavailable.
+
+These labels describe the current implementation; they should not be interpreted as proof of overall system security or benchmark compliance.
 
 ## Testing
 
-A simple test script to verify functionality of tool:
-
-```bash
-./test.sh
-```
-
-Or:
+Build and run the smoke tests with:
 
 ```bash
 make test
 ```
 
+The current tests verify that the executable starts and completes an audit run. They do not yet validate the correctness of individual security checks.
+
+## CI
+
+GitHub Actions runs on pushes and pull requests targeting `main`. The workflow checks out the repository, lints YAML files, builds with GCC on Ubuntu, and runs the smoke tests.
+
+This CI job validates the build and basic execution path on Ubuntu; it does not replace testing on supported Slackware releases.
+
 ## Contributing
 
-Contributions are welcome! If you'd like to contribute, please follow these steps:
-
-1. Fork the repository.
-
-2. Create a new branch for your feature or fix:
-
-```bash
-git checkout -b feature-name
-```
-
-1. Commit your changes:
-
-```bash
-git commit -m "Add feature or fix"
-```
-
-1. Push to your fork:
-
-```bash
-git push origin feature-name
-```
-
-1. Open a pull request on GitHub.
+Contributions are welcome. Please create a feature branch, include tests for behavior changes, and open a pull request.
 
 ## License
 
-This project is licensed under the **GPL-3.0**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL-3.0. See [LICENSE](LICENSE) for details.
 
 ## Contact
 
-For questions or feedback, please use [issues](https://github.com/yousha/slacksecchk/issues) section.
+For questions or feedback, please use the [GitHub issues](https://github.com/Yousha/slacksecchk/issues) page.
