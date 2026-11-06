@@ -117,19 +117,122 @@ void check_user_password_expiration() {
    system("chage -l root | grep -E 'Password expires|Account expires' || echo '" COLOR_RED "FAILED! Could not verify password expiration for root." COLOR_RESET "'");
 }
 
-/**
- * @brief CIS: Verifies firewall rules are configured.
+/*
+ * Detect an effective packet-filtering policy, not merely an installed tool.
  */
-void check_firewall_rules() {
-   printf("\n[CIS] Checking firewall is configured... ");
-
-   if (system("iptables -L > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! iptables not configured or inactive.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+static int command_has_text(const char *command, const char *needle) {
+   FILE *pipe = popen(command, "r");
+   char line[1024];
+   int found = 0;
+   if (pipe == NULL) return 0;
+   while (fgets(line, sizeof(line), pipe) != NULL) {
+      if (strstr(line, needle) != NULL) { found = 1; break; }
    }
+   (void)pclose(pipe);
+   return found;
 }
 
+static int iptables_filter_is_active(const char *command) {
+   FILE *pipe = popen(command, "r");
+   char line[1024];
+   int active = 0;
+   if (pipe == NULL) return 0;
+   while (fgets(line, sizeof(line), pipe) != NULL) {
+      if ((strncmp(line, ":INPUT ", 7) == 0 ||
+           strncmp(line, ":FORWARD ", 9) == 0) &&
+          (strstr(line, " DROP") != NULL || strstr(line, " REJECT") != NULL)) {
+         active = 1; break;
+      }
+      if ((strncmp(line, "-A INPUT ", 9) == 0 ||
+           strncmp(line, "-A FORWARD ", 12) == 0) &&
+          (strstr(line, " -j DROP") != NULL || strstr(line, " -j REJECT") != NULL)) {
+         active = 1; break;
+      }
+   }
+   (void)pclose(pipe);
+   return active;
+}
+
+static int nft_filter_is_active(void) {
+   FILE *pipe = popen("nft list ruleset 2>/dev/null", "r");
+   char line[1024];
+   int in_chain = 0, hooked_filter_chain = 0, active = 0;
+   if (pipe == NULL) return 0;
+   while (fgets(line, sizeof(line), pipe) != NULL) {
+      if (strstr(line, "chain input {") != NULL ||
+          strstr(line, "chain forward {") != NULL) {
+         in_chain = 1;
+         hooked_filter_chain = 0;
+      } else if (in_chain && (strstr(line, "hook input") != NULL ||
+                             strstr(line, "hook forward") != NULL)) {
+         hooked_filter_chain = 1;
+      }
+      if (in_chain && hooked_filter_chain &&
+          (strstr(line, "policy drop") != NULL ||
+           strstr(line, "policy reject") != NULL ||
+           strstr(line, " drop") != NULL ||
+           strstr(line, " reject") != NULL)) {
+         active = 1; break;
+      }
+      if (in_chain && strchr(line, '}') != NULL) {
+         in_chain = 0;
+         hooked_filter_chain = 0;
+      }
+   }
+   (void)pclose(pipe);
+   return active;
+}
+
+static int slackware_firewall_startup_enabled(const char *backend) {
+   if (strcmp(backend, "firewalld") == 0)
+      return access("/etc/rc.d/rc.firewalld", X_OK) == 0;
+   /* Slackware rc.inet2 invokes an executable /etc/rc.d/rc.firewall. */
+   return access("/etc/rc.d/rc.firewall", X_OK) == 0;
+}
+
+/**
+ * @brief Detect firewall backend, effective runtime filtering, and boot enablement.
+ */
+void check_firewall_rules(void) {
+   const char *backend = NULL;
+   int startup_enabled;
+
+   printf("\n[CIS] Detecting firewall and checking whether it is enabled... ");
+
+   if (command_has_text("ufw status 2>/dev/null", "Status: active")) {
+      backend = "ufw";
+   } else if (command_has_text("firewall-cmd --state 2>/dev/null", "running")) {
+      backend = "firewalld";
+   } else if (nft_filter_is_active()) {
+      backend = "nftables";
+   } else if (iptables_filter_is_active("iptables-save 2>/dev/null") ||
+              iptables_filter_is_active("ip6tables-save 2>/dev/null")) {
+      backend = "iptables";
+   }
+
+   if (backend == NULL) {
+      if (access("/etc/rc.d/rc.firewall", F_OK) == 0 ||
+          access("/etc/rc.d/rc.firewalld", F_OK) == 0) {
+         printf(COLOR_RED "FAILED! A firewall startup script exists, but no active filtering policy was detected.\n" COLOR_RESET);
+      } else {
+         printf(COLOR_RED "FAILED! No active firewall backend or filtering policy was detected.\n" COLOR_RESET);
+      }
+      return;
+   }
+
+   startup_enabled = slackware_firewall_startup_enabled(backend);
+   printf("Detected %s; runtime filtering: " COLOR_GREEN "enabled" COLOR_RESET
+          "; boot startup: %s%s%s.\n",
+          backend,
+          startup_enabled ? COLOR_GREEN : COLOR_RED,
+          startup_enabled ? "enabled" : "disabled",
+          COLOR_RESET);
+   if (startup_enabled) {
+      printf(COLOR_GREEN "PASSED! Firewall is active and configured for startup.\n" COLOR_RESET);
+   } else {
+      printf(COLOR_RED "FAILED! Firewall rules are active, but no executable Slackware startup hook was found.\n" COLOR_RESET);
+   }
+}
 /**
  * @brief CIS: Checks if audit daemon (auditd) is running (SysV Init version).
  */
