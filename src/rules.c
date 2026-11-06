@@ -123,9 +123,9 @@ void check_disabled_service(const char *service_name) {
    }
 
    if (enabled) {
-      printf(COLOR_RED "FAILED! Unnecessary service '%s' is enabled.\\n" COLOR_RESET, service_name);
+      printf(COLOR_RED "FAILED! Unnecessary service '%s' is enabled.\n" COLOR_RESET, service_name);
    } else {
-      printf(COLOR_GREEN "PASSED!\\n" COLOR_RESET);
+      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    }
 }
 /**
@@ -178,8 +178,7 @@ static int nft_filter_is_active(void) {
    int in_chain = 0, hooked_filter_chain = 0, active = 0;
    if (pipe == NULL) return 0;
    while (fgets(line, sizeof(line), pipe) != NULL) {
-      if (strstr(line, "chain input {") != NULL ||
-          strstr(line, "chain forward {") != NULL) {
+      if (strstr(line, "chain ") != NULL && strchr(line, '{') != NULL) {
          in_chain = 1;
          hooked_filter_chain = 0;
       } else if (in_chain && (strstr(line, "hook input") != NULL ||
