@@ -64,7 +64,7 @@ int main(void) {
       "explicit iptables DROP rules are detected");
 
    passed &= expect(write_command(directory, "iptables-save",
-      "cat <<'EOF'\\n:INPUT ACCEPT [0:0]\\n:FORWARD ACCEPT [0:0]\\n-A FORWARD -p tcp -j REJECT\\nCOMMIT\\nEOF\\n"),
+      "cat <<'EOF'\n:INPUT ACCEPT [0:0]\n:FORWARD ACCEPT [0:0]\n-A FORWARD -p tcp -j REJECT\nCOMMIT\nEOF\n"),
       "replace iptables FORWARD rule fixture");
    passed &= expect(iptables_filter_is_active("iptables-save"),
       "explicit iptables FORWARD REJECT rules are detected");
