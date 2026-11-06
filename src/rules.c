@@ -163,7 +163,7 @@ static int iptables_filter_is_active(const char *command) {
          active = 1; break;
       }
       if ((strncmp(line, "-A INPUT ", 9) == 0 ||
-           strncmp(line, "-A FORWARD ", 12) == 0) &&
+           strncmp(line, "-A FORWARD ", 11) == 0) &&
           (strstr(line, " -j DROP") != NULL || strstr(line, " -j REJECT") != NULL)) {
          active = 1; break;
       }
