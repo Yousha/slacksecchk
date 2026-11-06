@@ -202,8 +202,12 @@ static int nft_filter_is_active(void) {
 }
 
 static int slackware_firewall_startup_enabled(const char *backend) {
-   if (strcmp(backend, "firewalld") == 0)
-      return access("/etc/rc.d/rc.firewalld", X_OK) == 0;
+   if (strcmp(backend, "firewalld") == 0) {
+      /* SlackBuilds.org firewalld integration requires an rc.local start hook. */
+      return access("/etc/rc.d/rc.firewalld", X_OK) == 0 &&
+             command_has_text("grep -E '^[[:space:]]*/etc/rc.d/rc.firewalld[[:space:]]+start([[:space:]]|$)' /etc/rc.d/rc.local 2>/dev/null",
+                              "/etc/rc.d/rc.firewalld");
+   }
    /* Slackware rc.inet2 invokes an executable /etc/rc.d/rc.firewall. */
    return access("/etc/rc.d/rc.firewall", X_OK) == 0;
 }
