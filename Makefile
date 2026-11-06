@@ -1,59 +1,50 @@
-MAKEFLAGS += --silent --no-print-directory
+MAKEFLAGS += --no-print-directory
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -std=c99
-DEBUG_CFLAGS = -Wall -Wextra -g -std=c99
-LDFLAGS =
+CFLAGS ?= -Wall -Wextra -O2 -std=c99
+DEBUG_CFLAGS ?= -Wall -Wextra -g -std=c99
+CPPFLAGS ?=
+LDFLAGS ?=
+
 TARGET = artifacts/slacksecchk
-SRCS = src/slacksecchk.c src/rules.c
 OBJS = artifacts/slacksecchk.o artifacts/rules.o
 
-# Debug toggle
-debug: CFLAGS = $(DEBUG_CFLAGS)
-debug:
-	@echo "Building in debug mode..."
-	$(MAKE) all
-
-all:
-	@echo "Starting build..."
-	$(MAKE) $(TARGET)
+all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	@echo "Linking executable..."
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-artifacts/slacksecchk.o: src/slacksecchk.c
-	@echo "Compiling slacksecchk..."
+artifacts/%.o: src/%.c src/rules.h
 	@mkdir -p artifacts
-	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "Compiling $<..."
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-artifacts/rules.o: src/rules.c
-	@echo "Compiling rules..."
-	@mkdir -p artifacts
-	$(CC) $(CFLAGS) -c $< -o $@
+debug:
+	$(MAKE) clean
+	$(MAKE) CFLAGS="$(DEBUG_CFLAGS)" all
 
 clean:
 	@echo "Cleaning..."
-	rm -f ./test_output.txt
-	rm -rf artifacts/*
 	rm -rf artifacts
+	rm -f ./test_output.txt
 
 test: $(TARGET)
 	@echo "Running tests..."
-	chmod +x ./test.sh
-	./test.sh
+	bash ./test.sh
 
 install: $(TARGET)
 	@echo "Installing binary..."
-	mkdir -p /usr/local/bin
-	cp $(TARGET) /usr/local/bin/slacksecchk
-	chmod +x /usr/local/bin/slacksecchk
+	install -D -m 0755 $(TARGET) /usr/local/bin/slacksecchk
 
 uninstall:
 	@echo "Uninstalling binary..."
 	rm -f /usr/local/bin/slacksecchk
 
-usage:
-	@echo "Usage: make [all | clean | test | install | uninstall | debug]"
+checksums:
+	find . -type f -not -path './.git/*' -not -path './artifacts/*' -not -name 'Checksums.sha256' -print0 | sort -z | xargs -0 sha256sum > Checksums.sha256
 
-.PHONY: all clean test install uninstall debug usage
+usage:
+	@echo "Usage: make [all | clean | test | checksums | install | uninstall | debug]"
+
+.PHONY: all clean test checksums install uninstall debug usage
