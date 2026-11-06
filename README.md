@@ -94,7 +94,7 @@ Build and run the smoke tests with:
 make test
 ```
 
-The current tests verify that the executable starts and completes an audit run. The smoke test stubs recursive filesystem searches so CI does not audit the runner host. It does not validate the correctness of individual security checks.
+The tests cover firewall ruleset parsing (iptables and nftables), plus application startup and completion. The smoke test stubs recursive filesystem searches so CI does not audit the runner host. The broader security checks still require validation against a real Slackware host.
 
 ## CI
 
