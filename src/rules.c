@@ -1,4 +1,6 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -37,11 +39,10 @@ void check_file_permissions(const char *filename, mode_t expected_mode) {
  */
 void check_log_files() {
    // Slackware defaults
-   check_file_permissions("/var/log/messages", 0600);
+   check_file_permissions("/var/log/messages", 0640);
    check_file_permissions("/var/log/secure", 0600);
    check_file_permissions("/var/log/maillog", 0600);
    check_file_permissions("/var/log/syslog", 0644);
-   check_file_permissions("/var/log/messages", 0644);
 }
 
 /**
@@ -82,7 +83,7 @@ void check_password_policy() {
 void check_service(const char *service_name) {
    printf("\n[CIS] Checking if service '%s' is running... ", service_name);
    char command[256];
-   snprintf(command, sizeof(command), "pgrep %s > /dev/null 2>&1", service_name);
+   snprintf(command, sizeof(command), "pgrep -x %s > /dev/null 2>&1", service_name);
 
    if (system(command) != 0) {
       printf(COLOR_RED "FAILED! Service '%s' is not running.\n" COLOR_RESET, service_name);
@@ -92,23 +93,41 @@ void check_service(const char *service_name) {
 }
 
 /**
- * @brief CIS: Check an unnecessary service is disabled (Slackware version).
- *
- * @param service_name The name of service to check.
+ * @brief Checks service enablement using Slackware rc scripts and inetd.
  */
 void check_disabled_service(const char *service_name) {
-   printf("\n[CIS] Checking if unnecessary service '%s' is disabled... ", service_name);
    char script_path[256];
-   snprintf(script_path, sizeof(script_path), "/etc/rc.d/rc.%s", service_name);
+   char line[512];
+   int enabled = 0;
 
-   // Check if service script exists and is executable.
-   if (access(script_path, X_OK) == 0) {
-      printf(COLOR_RED "FAILED! Unnecessary service '%s' is enabled.\n" COLOR_RESET, service_name);
+   printf("\n[CIS] Checking if unnecessary service '%s' is disabled... ", service_name);
+   snprintf(script_path, sizeof(script_path), "/etc/rc.d/rc.%s", service_name);
+   if (access(script_path, X_OK) == 0) enabled = 1;
+
+   /* Slackware commonly exposes legacy services through inetd, not rc scripts. */
+   if (!enabled && strcmp(service_name, "telnet") == 0) {
+      FILE *inetd = fopen("/etc/inetd.conf", "r");
+      if (inetd != NULL) {
+         while (fgets(line, sizeof(line), inetd) != NULL) {
+            char *p = line;
+            char service[64];
+            while (isspace((unsigned char)*p)) p++;
+            if (*p == '#' || *p == '\0') continue;
+            if (sscanf(p, "%63s", service) == 1 && strcmp(service, "telnet") == 0) {
+               enabled = 1;
+               break;
+            }
+         }
+         fclose(inetd);
+      }
+   }
+
+   if (enabled) {
+      printf(COLOR_RED "FAILED! Unnecessary service '%s' is enabled.\\n" COLOR_RESET, service_name);
    } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+      printf(COLOR_GREEN "PASSED!\\n" COLOR_RESET);
    }
 }
-
 /**
  * @brief CIS: Verifies that user accounts have password expiration policies.
  */
