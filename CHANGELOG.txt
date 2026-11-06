@@ -1,3 +1,10 @@
+slacksecchk 1.0.3.3 - Unreleased
+-------------------------
+* Align project metadata with the application version.
+* Correct CI checkout and YAML lint ordering.
+* Make build and smoke-test responsibilities explicit.
+* Correct build, install, and usage documentation.
+
 slacksecchk 1.0.2.2 - 2025-5-20
 -------------------------
 * Improve E2E test.
