@@ -39,7 +39,7 @@ void check_file_permissions(const char *filename, mode_t expected_mode) {
  */
 void check_log_files() {
    // Slackware defaults
-   check_file_permissions("/var/log/messages", 0640);
+   check_file_permissions("/var/log/messages", 0600);
    check_file_permissions("/var/log/secure", 0600);
    check_file_permissions("/var/log/maillog", 0600);
    check_file_permissions("/var/log/syslog", 0644);
@@ -396,44 +396,23 @@ void check_core_dumps() {
 }
 
 /**
- * @brief CIS: Check SSH configuration.
+ * @brief Checks the effective OpenSSH configuration.
+ * The obsolete Protocol directive is deliberately not checked; modern
+ * OpenSSH supports SSH protocol 2 only and rejects that old directive.
  */
-void check_ssh_config() {
+void check_ssh_config(void) {
    printf("\n[CIS] Checking SSH configuration... ");
-   FILE *file = fopen("/etc/ssh/sshd_config", "r");
-
-   if (file == NULL) {
-      printf(COLOR_YELLOW "Error: Unable to access /etc/ssh/sshd_config\n" COLOR_RESET);
+   if (access("/usr/sbin/sshd", X_OK) != 0 && access("/usr/sbin/sshd", F_OK) != 0) {
+      printf(COLOR_YELLOW "Notice: OpenSSH server is not installed; SSH server check is not applicable.\n" COLOR_RESET);
       return;
    }
 
-   char line[256];
-   int root_login_disabled = 0, protocol_2_enabled = 0;
-
-   while (fgets(line, sizeof(line), file)) {
-      if (strstr(line, "PermitRootLogin no")) {
-         root_login_disabled = 1;
-      }
-      if (strstr(line, "Protocol 2")) {
-         protocol_2_enabled = 1;
-      }
-   }
-
-   fclose(file);
-
-   if (root_login_disabled && protocol_2_enabled) {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   if (command_has_text("/usr/sbin/sshd -T 2>/dev/null", "permitrootlogin no")) {
+      printf(COLOR_GREEN "PASSED! Effective SSH configuration disables root login.\n" COLOR_RESET);
    } else {
-      printf(COLOR_RED "FAILED! SSH is not configured securely.\n" COLOR_RESET);
-      if (!root_login_disabled) {
-         printf(COLOR_RED "FAILED! PermitRootLogin is not set to 'no'.\n" COLOR_RESET);
-      }
-      if (!protocol_2_enabled) {
-         printf(COLOR_RED "FAILED! Protocol is not set to '2'.\n" COLOR_RESET);
-      }
+      printf(COLOR_RED "FAILED! Effective SSH configuration does not set PermitRootLogin to no, or sshd configuration validation failed.\n" COLOR_RESET);
    }
 }
-
 /**
  * @brief CIS: Check for world-writable files.
  */
@@ -523,7 +502,7 @@ void check_password_reuse_policy() {
    FILE *file = fopen("/etc/security/pwquality.conf", "r");
 
    if (file == NULL) {
-      printf(COLOR_YELLOW "Error: Unable to access /etc/security/pwquality.conf\n" COLOR_RESET);
+      printf(COLOR_YELLOW "Notice: pwquality/PAM is not installed; this optional password-reuse check is not applicable.\n" COLOR_RESET);
       return;
    }
 
