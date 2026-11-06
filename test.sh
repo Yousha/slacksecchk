@@ -3,17 +3,27 @@
 set -euo pipefail
 
 BINARY="./artifacts/slacksecchk"
-OUTPUT="$(mktemp)"
-trap 'rm -f "$OUTPUT"' EXIT
+TEST_DIR="$(mktemp -d)"
+OUTPUT="$TEST_DIR/output.txt"
+trap 'rm -rf "$TEST_DIR"' EXIT
 
 if [[ ! -x "$BINARY" ]]; then
     echo "Test setup error: $BINARY is missing or not executable. Run 'make' first." >&2
     exit 2
 fi
 
+# The audit performs recursive scans of the host filesystem. Stub find in this
+# smoke test so CI verifies startup and completion without auditing the runner.
+mkdir -p "$TEST_DIR/bin"
+cat > "$TEST_DIR/bin/find" <<'EOF'
+#!/usr/bin/env sh
+exit 0
+EOF
+chmod +x "$TEST_DIR/bin/find"
+
 echo "Running SlackSecChk smoke tests..."
 
-if ! "$BINARY" >"$OUTPUT" 2>&1; then
+if ! PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
     echo "Test failed: the program returned a non-zero exit status."
     cat "$OUTPUT"
     exit 1
