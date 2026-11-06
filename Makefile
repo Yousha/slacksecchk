@@ -41,7 +41,10 @@ uninstall:
 	@echo "Uninstalling binary..."
 	rm -f /usr/local/bin/slacksecchk
 
-usage:
-	@echo "Usage: make [all | clean | test | install | uninstall | debug]"
+checksums:
+	find . -type f -not -path './.git/*' -not -path './artifacts/*' -not -name 'Checksums.sha256' -print0 | sort -z | xargs -0 sha256sum > Checksums.sha256
 
-.PHONY: all clean test install uninstall debug usage
+usage:
+	@echo "Usage: make [all | clean | test | checksums | install | uninstall | debug]"
+
+.PHONY: all clean test checksums install uninstall debug usage
