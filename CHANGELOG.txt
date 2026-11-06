@@ -5,6 +5,7 @@ slacksecchk 1.0.3.3 - Unreleased
 * Make build and smoke-test responsibilities explicit.
 * Keep CI smoke tests from recursively scanning the runner host.
 * Correct build, install, and usage documentation.
+* Replace the invalid legacy checksum list with a reproducible checksum target.
 
 slacksecchk 1.0.2.2 - 2025-5-20
 -------------------------
