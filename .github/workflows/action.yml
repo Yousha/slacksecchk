@@ -38,3 +38,6 @@ jobs:
 
       - name: Test
         run: make test
+
+      - name: Verify checksum generation
+        run: make checksums && sha256sum -c Checksums.sha256 && rm -f Checksums.sha256
