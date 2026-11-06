@@ -82,7 +82,7 @@ Build and run the smoke tests with:
 make test
 ```
 
-The current tests verify that the executable starts and completes an audit run. They do not yet validate the correctness of individual security checks.
+The current tests verify that the executable starts and completes an audit run. The smoke test stubs recursive filesystem searches so CI does not audit the runner host. It does not validate the correctness of individual security checks.
 
 ## CI
 
