@@ -21,6 +21,10 @@ exit 0
 EOF
 chmod +x "$TEST_DIR/bin/find"
 
+echo "Running firewall detection unit tests..."
+gcc -Wall -Wextra -O2 -std=c99 tests/firewall_detection_test.c -o "$TEST_DIR/firewall_detection_test"
+"$TEST_DIR/firewall_detection_test"
+
 echo "Running SlackSecChk smoke tests..."
 
 if ! PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
