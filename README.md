@@ -49,6 +49,7 @@ Useful Make targets:
 | `make debug` | Clean and build with debug symbols. |
 | `make clean` | Remove generated build files. |
 | `make test` | Run the smoke tests (builds first if needed). |
+| `make checksums` | Generate a fresh `Checksums.sha256` manifest for the working tree. |
 | `sudo make install` | Install to `/usr/local/bin/slacksecchk` (requires root privileges). |
 | `sudo make uninstall` | Remove the installed executable (requires root privileges). |
 
@@ -73,6 +74,16 @@ The program prints the result of each configured check. Output labels have the f
 - **Notice/Error**: The check could not fully verify the condition or the required configuration was unavailable.
 
 These labels describe the current implementation; they should not be interpreted as proof of overall system security or benchmark compliance.
+
+## Checksums
+
+The checksum manifest is generated from the current working tree. After running `make checksums`, verify it from the repository root with:
+
+```bash
+sha256sum -c Checksums.sha256
+```
+
+Regenerate the manifest after changing tracked files.
 
 ## Testing
 
