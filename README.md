@@ -12,6 +12,7 @@ SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a
 - Reviews selected password and account-policy settings.
 - Checks selected services, packages, logging, SSH, firewall, and kernel settings.
 - Uses Slackware package records and `/etc/rc.d` service scripts where applicable.
+- Detects active UFW, firewalld, nftables, and iptables filtering, and checks Slackware boot-time firewall enablement.
 - Provides a small C codebase intended to be extended with additional checks.
 
 ## Requirements
@@ -100,6 +101,10 @@ The current tests verify that the executable starts and completes an audit run. 
 GitHub Actions runs on pushes and pull requests targeting `main`. The workflow checks out the repository, lints YAML files, builds with GCC on Ubuntu, and runs the smoke tests.
 
 This CI job validates the build and basic execution path on Ubuntu; it does not replace testing on supported Slackware releases.
+
+## Slackware compatibility
+
+Slackware uses SysV-style startup scripts rather than systemd. Service checks therefore inspect daemon processes and `/etc/rc.d/rc.*` executable bits instead of calling `systemctl` or the generic `service` command. The firewall check detects active UFW, firewalld, nftables, or iptables filtering rules and separately verifies the relevant Slackware startup hook (`rc.firewall` or `rc.firewalld`). Slackware's standard `sysklogd` (`syslogd`) and `ntpd` are recognized. Optional components that are not part of a standard Slackware installation, such as auditd, SELinux/AppArmor, and Red Hat crypto-policies, are reported as not applicable when absent.
 
 ## Contributing
 
