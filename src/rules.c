@@ -234,18 +234,23 @@ void check_firewall_rules(void) {
    }
 }
 /**
- * @brief CIS: Checks if audit daemon (auditd) is running (SysV Init version).
+ * @brief Checks optional auditd using Slackware's rc-script convention.
+ * auditd is not part of a standard Slackware installation.
  */
-void check_auditd() {
+void check_auditd(void) {
    printf("\n[CIS] Checking audit logging... ");
-
-   if (system("service auditd status > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! auditd is not running.\n" COLOR_RESET);
+   if (access("/usr/sbin/auditd", X_OK) != 0 && access("/sbin/auditd", X_OK) != 0) {
+      printf(COLOR_YELLOW "Notice: auditd is not installed; this optional check is not applicable.\n" COLOR_RESET);
+      return;
+   }
+   if (system("pgrep -x auditd > /dev/null 2>&1") == 0) {
+      printf(COLOR_GREEN "PASSED! auditd is running.\n" COLOR_RESET);
+   } else if (access("/etc/rc.d/rc.auditd", X_OK) == 0) {
+      printf(COLOR_RED "FAILED! auditd startup is enabled, but the daemon is not running.\n" COLOR_RESET);
    } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+      printf(COLOR_RED "FAILED! auditd is installed but is not running or enabled at startup.\n" COLOR_RESET);
    }
 }
-
 /**
  * @brief CIS: Verifies access control settings for sensitive directories.
  */
@@ -256,27 +261,29 @@ void check_access_control() {
 }
 
 /**
- * @brief CIS: Verifies logging configurations (SysV Init version).
+ * @brief Checks Slackware sysklogd first, then optional logging daemons.
  */
-void check_logging() {
+void check_logging(void) {
    printf("\n[CIS] Checking logging configurations... ");
-
-   // Check rsyslog or syslog-ng is running.
-   if (system("service rsyslog status > /dev/null 2>&1") != 0 && system("service syslog-ng status > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! Logging service (rsyslog or syslog-ng) is not running.\n" COLOR_RESET);
+   if (system("pgrep -x syslogd > /dev/null 2>&1") == 0 ||
+       system("pgrep -x rsyslogd > /dev/null 2>&1") == 0 ||
+       system("pgrep -x syslog-ng > /dev/null 2>&1") == 0) {
+      printf(COLOR_GREEN "PASSED! A supported system logging daemon is running.\n" COLOR_RESET);
+   } else if (access("/etc/rc.d/rc.syslog", F_OK) == 0 ||
+              access("/etc/rc.d/rc.rsyslog", F_OK) == 0 ||
+              access("/etc/rc.d/rc.syslog-ng", F_OK) == 0) {
+      printf(COLOR_RED "FAILED! A logging service is configured but no logging daemon is running.\n" COLOR_RESET);
    } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+      printf(COLOR_RED "FAILED! No supported system logging daemon was detected.\n" COLOR_RESET);
    }
 
    printf("\n[CIS] Checking log rotation is configured...");
-
    if (access("/etc/logrotate.conf", F_OK) != 0) {
       printf(COLOR_YELLOW "Notice: Log rotation configuration not found.\n" COLOR_RESET);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    }
 }
-
 /**
  * @brief CIS: Check unnecessary services are disabled.
  */
@@ -536,46 +543,44 @@ void check_cron_jobs() {
 }
 
 /**
- * @brief CIS: Verify system time synchronization.
+ * @brief Checks Slackware's ntpd and optional chronyd by exact process name.
  */
-void check_time_synchronization() {
+void check_time_synchronization(void) {
    printf("\n[CIS] Checking system time synchronization... ");
-
-   if (system("service ntp status > /dev/null 2>&1") != 0 && system("service chronyd status > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! System time synchronization (NTP/Chrony) is not running.\n" COLOR_RESET);
+   if (system("pgrep -x ntpd > /dev/null 2>&1") == 0 ||
+       system("pgrep -x chronyd > /dev/null 2>&1") == 0) {
+      printf(COLOR_GREEN "PASSED! NTP daemon is running.\n" COLOR_RESET);
+   } else if (access("/etc/rc.d/rc.ntpd", X_OK) == 0 ||
+              access("/etc/rc.d/rc.chronyd", X_OK) == 0) {
+      printf(COLOR_RED "FAILED! Time synchronization is enabled at startup, but its daemon is not running.\n" COLOR_RESET);
    } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+      printf(COLOR_RED "FAILED! No enabled NTP/Chrony daemon was detected.\n" COLOR_RESET);
    }
 }
-
 /**
- * @brief CIS: Enable SELinux/AppArmor.
+ * @brief Checks SELinux/AppArmor only when installed; neither is standard
+ *        on Slackware and their absence is therefore reported as not applicable.
  */
-void check_selinux_apparmor() {
-   printf("\n[CIS] Checking SELinux/AppArmor... ");
-   FILE *file = fopen("/etc/selinux/config", "r");
-
-   if (file != NULL) {
-      char line[256];
-      int enforcing_found = 0;
-      while (fgets(line, sizeof(line), file)) {
-         if (strstr(line, "SELINUX=enforcing")) {
-            enforcing_found = 1;
-            printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
-            break;
-         }
+void check_selinux_apparmor(void) {
+   printf("\n[CIS] Checking optional SELinux/AppArmor support... ");
+   if (access("/etc/selinux/config", F_OK) == 0) {
+      if (command_has_text("getenforce 2>/dev/null", "Enforcing")) {
+         printf(COLOR_GREEN "PASSED! SELinux is enforcing.\n" COLOR_RESET);
+      } else {
+         printf(COLOR_RED "FAILED! SELinux is installed but is not enforcing.\n" COLOR_RESET);
       }
-      fclose(file);
-      if (!enforcing_found) {
-         printf(COLOR_RED "FAILED! SELinux is not enforcing.\n" COLOR_RESET);
-      }
-   } else if (access("/etc/apparmor.d", F_OK) == 0) {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
-   } else {
-      printf(COLOR_RED "FAILED! Neither SELinux nor AppArmor is enabled.\n" COLOR_RESET);
+      return;
    }
+   if (access("/etc/apparmor.d", F_OK) == 0) {
+      if (command_has_text("aa-status 2>/dev/null", "profiles are in enforce mode")) {
+         printf(COLOR_GREEN "PASSED! AppArmor has enforced profiles.\n" COLOR_RESET);
+      } else {
+         printf(COLOR_RED "FAILED! AppArmor configuration exists, but enforced profiles were not confirmed.\n" COLOR_RESET);
+      }
+      return;
+   }
+   printf(COLOR_YELLOW "Notice: SELinux and AppArmor are optional and not part of a standard Slackware install; check not applicable.\n" COLOR_RESET);
 }
-
 /**
  * @brief CIS: Disable USB storage devices.
  */
@@ -742,36 +747,31 @@ void check_core_dump_restriction() {
 }
 
 /**
- * @brief DISA STIG: Check system-wide crypto policy is enabled.
+ * @brief Checks Red Hat crypto-policies only when that optional framework exists.
+ * Standard Slackware installations do not provide /etc/crypto-policies.
  */
-void check_crypto_policy() {
-   printf("\n[DISA STIG] Checking system-wide crypto policy enabled... ");
+void check_crypto_policy(void) {
+   printf("\n[DISA STIG] Checking system-wide crypto policy... ");
    FILE *file = fopen("/etc/crypto-policies/config", "r");
-
    if (file == NULL) {
-      printf(COLOR_YELLOW "Error: Unable to access /etc/crypto-policies/config.\n" COLOR_RESET);
+      printf(COLOR_YELLOW "Notice: crypto-policies is not installed; this Red Hat-specific check is not applicable to standard Slackware.\n" COLOR_RESET);
       return;
    }
-
    char line[256];
    int crypto_policy_found = 0;
-
    while (fgets(line, sizeof(line), file)) {
       if (strstr(line, "DEFAULT") || strstr(line, "FUTURE")) {
          crypto_policy_found = 1;
          break;
       }
    }
-
    fclose(file);
-
    if (crypto_policy_found) {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    } else {
       printf(COLOR_RED "FAILED! System-wide crypto policy is not enabled.\n" COLOR_RESET);
    }
 }
-
 /**
  * @brief NSA: Check IP forwarding is disabled (IPv4 Forwarding).
  */
