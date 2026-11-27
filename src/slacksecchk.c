@@ -9,7 +9,7 @@
  * Compiler: GCC 10.1.*
  * Builder: CMake 3.18.*
  * License: GPL-3.0
- * Copyright: Copyright (c) 2025 Yousha Aleayoub.
+ * Copyright: Copyright 2025 Yousha Aleayoub.
  * Producer: Yousha Aleayoub
  * Maintainer: Yousha Aleayoub
  * Contact: yousha.a@hotmail.com
