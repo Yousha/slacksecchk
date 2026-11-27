@@ -58,6 +58,19 @@ static int audit_status_valid(const char *status) {
          strcmp(status, AUDIT_STATUS_ERROR) == 0);
 }
 
+static int audit_severity_valid(const char *severity) {
+    return severity != NULL &&
+        (strcmp(severity, AUDIT_SEVERITY_INFO) == 0 ||
+         strcmp(severity, AUDIT_SEVERITY_LOW) == 0 ||
+         strcmp(severity, AUDIT_SEVERITY_MEDIUM) == 0 ||
+         strcmp(severity, AUDIT_SEVERITY_HIGH) == 0 ||
+         strcmp(severity, AUDIT_SEVERITY_CRITICAL) == 0);
+}
+
+static int audit_field_terminated(const char *field, size_t size) {
+    return field != NULL && memchr(field, '\0', size) != NULL;
+}
+
 static void audit_update_summary(const char *status) {
     if (strcmp(status, AUDIT_STATUS_PASS) == 0)
         audit_summary.passed++;
@@ -88,9 +101,20 @@ void audit_set_current_rule(const char *rule_id, const char *category) {
 }
 
 int audit_finding_add(const audit_finding_t *finding) {
-    if (finding == NULL || finding->rule_id[0] == '\0' ||
-        finding->title[0] == '\0' || !audit_status_valid(finding->status) ||
-        finding->severity[0] == '\0' || finding->category[0] == '\0' ||
+    if (finding == NULL ||
+        !audit_field_terminated(finding->rule_id, sizeof(finding->rule_id)) ||
+        !audit_field_terminated(finding->title, sizeof(finding->title)) ||
+        !audit_field_terminated(finding->description, sizeof(finding->description)) ||
+        !audit_field_terminated(finding->severity, sizeof(finding->severity)) ||
+        !audit_field_terminated(finding->category, sizeof(finding->category)) ||
+        !audit_field_terminated(finding->status, sizeof(finding->status)) ||
+        !audit_field_terminated(finding->evidence, sizeof(finding->evidence)) ||
+        !audit_field_terminated(finding->remediation, sizeof(finding->remediation)) ||
+        !audit_field_terminated(finding->references, sizeof(finding->references)) ||
+        finding->rule_id[0] == '\0' || finding->title[0] == '\0' ||
+        !audit_status_valid(finding->status) ||
+        !audit_severity_valid(finding->severity) ||
+        finding->category[0] == '\0' ||
         audit_findings_count >= AUDIT_FINDING_MAX)
         return -1;
 
