@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "audit_utils.h"
 
 #include <ctype.h>
@@ -255,6 +256,8 @@ int audit_capture_command(const char *const argv[], char *output, size_t output_
             (void)dup2(null_fd, STDERR_FILENO);
             if (null_fd > STDERR_FILENO) close(null_fd);
         }
+        if (setenv("PATH", "/usr/sbin:/usr/bin:/sbin:/bin", 1) != 0)
+            _exit(126);
         execvp(argv[0], (char *const *)argv);
         _exit(errno == ENOENT ? 127 : 126);
     }
