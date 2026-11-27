@@ -6,6 +6,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')
@@ -202,11 +206,6 @@ int audit_is_executable(const char *path) {
     return (st.st_mode & S_IXUSR) != 0;
 }
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 static int audit_wait_for_child(pid_t child) {
     int status;
     while (waitpid(child, &status, 0) < 0) {
@@ -231,6 +230,8 @@ int audit_run_command(const char *const argv[], int suppress_output) {
                 if (null_fd > STDERR_FILENO) close(null_fd);
             }
         }
+        if (setenv("PATH", "/usr/sbin:/usr/bin:/sbin:/bin", 1) != 0)
+            _exit(126);
         execvp(argv[0], (char *const *)argv);
         _exit(errno == ENOENT ? 127 : 126);
     }
