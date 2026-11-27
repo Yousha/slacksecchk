@@ -16,6 +16,7 @@ SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a
 - Parses selected security configuration directives exactly and treats incomplete or overlong records as unverifiable.
 - Reviews effective OpenSSH daemon settings and additional kernel attack-surface sysctls when exposed by the running kernel.
 - Bounds external audit commands with a 30-second default timeout and terminates their process groups when they exceed it.
+- Assigns stable rule IDs and records structured findings with status, severity, category, evidence, remediation, and reference fields.
 
 ## Requirements
 
@@ -65,6 +66,8 @@ Useful Make targets:
 | `--color=auto` | Enable colors only when standard output is a suitable terminal. |
 | `--color=always` | Force ANSI colors, including when output is redirected. |
 | `--color=never`, `--no-color` | Disable ANSI colors. |
+| `--format=text` | Human-readable output (default). |
+| `--format=json` | Emit a JSON report with summary counters and structured findings. |
 
 Automatic color detection also respects `NO_COLOR` and `TERM=dumb`. Unknown options print usage information and return exit code `2`.
 
@@ -76,9 +79,7 @@ Use \`--format=json\` to emit a single JSON summary document instead of terminal
 sudo slacksecchk --format=json
 \`\`\`
 
-The document includes \`schema_version\`, \`tool\`, \`version\`, overall \`status\`, and \`summary\` counters for \`passed\`, \`failed\`, and \`unverified\`. In JSON mode, exit codes are \`0\` when no failed or unverified status markers were emitted, \`1\` when at least one failure was emitted, and \`2\` when checks were unverified but none failed. Invalid command-line options also return \`2\` and write the error to stderr.
-
-The counters represent result markers emitted by the current checks, not unique rule IDs or a complete benchmark finding inventory. Checks that do not emit one of the recognized result markers are not included in these counters. A future structured-finding interface is needed for per-rule IDs, evidence, and remediation data.
+The schema-v2 document includes `schema_version`, `tool`, `version`, overall `status`, summary counters (`passed`, `failed`, `unverified`), and a `findings` array. Each finding contains `rule_id`, `title`, `description`, `severity`, `category`, `status`, `evidence`, `remediation`, and `references`. Rule IDs are stable identifiers assigned by the audit entry point. Existing rule output is currently adapted into this model; evidence is retained from the emitted result line, while remediation and references are empty until a rule supplies explicit metadata. Status values are `PASS`, `FAIL`, `WARN`, `INFO`, `NOT_APPLICABLE`, and `ERROR`. In JSON mode, exit codes are `0` when no failed or unverified findings exist, `1` when at least one finding failed, and `2` when findings are unverified but none failed. Invalid command-line options also return `2` and write the error to stderr.
 
 ## Usage
 
@@ -122,7 +123,7 @@ make test
 
 The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
-The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, output truncation, and timeout termination. Timeout tests use real sleeping processes and verify the timeout result for both execution and capture APIs. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
+The fixture-based unit suite covers structured finding validation, stable rule IDs, status counters, JSON finding serialization, executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, output truncation, and timeout termination. Timeout tests use real sleeping processes and verify the timeout result for both execution and capture APIs. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
 
 ## CI
 
