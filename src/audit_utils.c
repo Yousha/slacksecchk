@@ -16,6 +16,22 @@
 #include <time.h>
 #include <poll.h>
 
+static int audit_color_mode = AUDIT_COLOR_AUTO;
+
+void audit_set_color_mode(int mode) {
+    if (mode >= AUDIT_COLOR_AUTO && mode <= AUDIT_COLOR_NEVER)
+        audit_color_mode = mode;
+}
+
+int audit_color_enabled(void) {
+    if (audit_color_mode == AUDIT_COLOR_ALWAYS)
+        return 1;
+    if (audit_color_mode == AUDIT_COLOR_NEVER || getenv("NO_COLOR") != NULL)
+        return 0;
+    const char *term = getenv("TERM");
+    return isatty(STDOUT_FILENO) && (term == NULL || strcmp(term, "dumb") != 0);
+}
+
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')
         return 0;
