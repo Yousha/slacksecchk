@@ -54,7 +54,7 @@ void check_tcp_wrappers() {
 
 void check_inetd_xinetd() {
    printf("\n[Slackware] Checking inetd/xinetd...\n");
-   if (is_executable("/etc/rc.d/rc.inetd"))
+   if (audit_is_executable("/etc/rc.d/rc.inetd"))
       printf(COLOR_RED "  FAILED! rc.inetd is executable.\n" COLOR_RESET);
    else if (access("/etc/rc.d/rc.inetd", F_OK) == 0)
       printf(COLOR_GREEN "  PASSED! rc.inetd not executable.\n" COLOR_RESET);
