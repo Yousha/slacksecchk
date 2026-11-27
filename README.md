@@ -13,6 +13,7 @@ SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a
 - Checks selected services, packages, logging, SSH, firewall, and kernel settings.
 - Uses Slackware package records and `/etc/rc.d` service scripts where applicable.
 - Organizes Slackware-specific checks into focused C modules for packages, services, boot, kernel, accounts, filesystems, networking, logging, and miscellaneous controls.
+- Parses selected security configuration directives exactly and treats incomplete or overlong records as unverifiable.
 
 ## Requirements
 
@@ -95,11 +96,11 @@ make test
 
 The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
-The test suite includes fixture-based unit tests for exact mount-option matching, strict integer parsing, shadow password-field parsing, and exact kernel-module matching. Tests use real temporary streams and no mocks or external services. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host. Run the complete suite with `make test`.
+The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, and `hosts.deny` rule parsing. Tests use real temporary files and streams, follow Arrange-Act-Assert structure, and use no mocks or external services. Overlong configuration records are rejected rather than parsed as partial input. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
 
 ## CI
 
-GitHub Actions runs on pushes and pull requests targeting `main`. The workflow checks out the repository, lints YAML files, builds with GCC on Ubuntu, and runs the smoke tests.
+GitHub Actions runs on pushes and pull requests targeting `main`. The workflow checks out the repository, lints YAML files, builds with GCC on Ubuntu, and runs the test suite.
 
 This CI job validates the build and basic execution path on Ubuntu; it does not replace testing on supported Slackware releases.
 
