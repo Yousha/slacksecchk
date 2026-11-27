@@ -24,6 +24,26 @@ static FILE *fixture_stream(const char *contents) {
     return stream;
 }
 
+static void test_executable_detection(void) {
+    /* Arrange */
+    char path[] = "/tmp/slacksecchk-executable-XXXXXX";
+    int fd = mkstemp(path);
+    ASSERT_TRUE(fd >= 0);
+    if (fd < 0)
+        return;
+    close(fd);
+
+    /* Act / Assert */
+    ASSERT_TRUE(chmod(path, 0700) == 0);
+    ASSERT_TRUE(audit_is_executable(path) == 1);
+    ASSERT_TRUE(chmod(path, 0600) == 0);
+    ASSERT_TRUE(audit_is_executable(path) == 0);
+    ASSERT_TRUE(audit_is_executable("/path/that/does/not/exist") == 0);
+
+    /* Cleanup */
+    ASSERT_TRUE(unlink(path) == 0);
+}
+
 static void test_mount_options(void) {
     /* Arrange */
     const char *options = "rw,nodev,nosuid,noexec";
@@ -86,6 +106,7 @@ static void test_module_name_matching(void) {
 }
 
 int main(void) {
+    test_executable_detection();
     test_mount_options();
     test_integer_parsing();
     test_shadow_password_fields();
