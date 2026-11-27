@@ -7,7 +7,8 @@ CPPFLAGS ?=
 LDFLAGS ?=
 
 TARGET = artifacts/slacksecchk
-OBJS = artifacts/slacksecchk.o artifacts/rules.o artifacts/rules_extra.o
+OBJS = artifacts/slacksecchk.o artifacts/rules.o artifacts/rules_extra.o artifacts/audit_utils.o
+UNIT_TEST = artifacts/test_audit_utils
 
 all: $(TARGET)
 
@@ -15,10 +16,14 @@ $(TARGET): $(OBJS)
 	@echo "Linking executable..."
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-artifacts/%.o: src/%.c src/rules.h
+artifacts/%.o: src/%.c src/rules.h src/audit_utils.h
 	@mkdir -p artifacts
 	@echo "Compiling $<..."
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(UNIT_TEST): tests/test_audit_utils.c src/audit_utils.c src/audit_utils.h
+	@mkdir -p artifacts
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Isrc tests/test_audit_utils.c src/audit_utils.c -o $@ $(LDFLAGS)
 
 debug:
 	$(MAKE) clean
@@ -29,8 +34,10 @@ clean:
 	rm -rf artifacts
 	rm -f ./test_output.txt
 
-test: $(TARGET)
-	@echo "Running tests..."
+test: $(TARGET) $(UNIT_TEST)
+	@echo "Running unit tests..."
+	./$(UNIT_TEST)
+	@echo "Running smoke tests..."
 	bash ./test.sh
 
 install: $(TARGET)
