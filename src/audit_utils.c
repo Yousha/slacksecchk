@@ -35,15 +35,87 @@ int audit_color_enabled(void) {
 
 static int audit_json_output = 0;
 static audit_summary_t audit_summary = {0, 0, 0};
+static audit_finding_t audit_findings[AUDIT_FINDING_MAX];
+static size_t audit_findings_count = 0;
+static char audit_current_rule[AUDIT_RULE_ID_SIZE] = "SSC-GENERAL-0000";
+static char audit_current_category[AUDIT_CATEGORY_SIZE] = "general";
+
+static void audit_copy_field(char *target, size_t target_size, const char *source) {
+    if (target_size == 0)
+        return;
+    if (source == NULL)
+        source = "";
+    (void)snprintf(target, target_size, "%s", source);
+}
+
+static int audit_status_valid(const char *status) {
+    return status != NULL &&
+        (strcmp(status, AUDIT_STATUS_PASS) == 0 ||
+         strcmp(status, AUDIT_STATUS_FAIL) == 0 ||
+         strcmp(status, AUDIT_STATUS_WARN) == 0 ||
+         strcmp(status, AUDIT_STATUS_INFO) == 0 ||
+         strcmp(status, AUDIT_STATUS_NOT_APPLICABLE) == 0 ||
+         strcmp(status, AUDIT_STATUS_ERROR) == 0);
+}
+
+static void audit_update_summary(const char *status) {
+    if (strcmp(status, AUDIT_STATUS_PASS) == 0)
+        audit_summary.passed++;
+    else if (strcmp(status, AUDIT_STATUS_FAIL) == 0)
+        audit_summary.failed++;
+    else if (strcmp(status, AUDIT_STATUS_WARN) == 0 ||
+             strcmp(status, AUDIT_STATUS_ERROR) == 0)
+        audit_summary.unverified++;
+}
 
 void audit_reset_summary(void) {
-    audit_summary.passed = 0;
-    audit_summary.failed = 0;
-    audit_summary.unverified = 0;
+    memset(&audit_summary, 0, sizeof(audit_summary));
+    memset(audit_findings, 0, sizeof(audit_findings));
+    audit_findings_count = 0;
+    audit_copy_field(audit_current_rule, sizeof(audit_current_rule), "SSC-GENERAL-0000");
+    audit_copy_field(audit_current_category, sizeof(audit_current_category), "general");
 }
 
 void audit_set_json_output(int enabled) {
     audit_json_output = enabled != 0;
+}
+
+void audit_set_current_rule(const char *rule_id, const char *category) {
+    if (rule_id != NULL && rule_id[0] != '\0')
+        audit_copy_field(audit_current_rule, sizeof(audit_current_rule), rule_id);
+    if (category != NULL && category[0] != '\0')
+        audit_copy_field(audit_current_category, sizeof(audit_current_category), category);
+}
+
+int audit_finding_add(const audit_finding_t *finding) {
+    if (finding == NULL || finding->rule_id[0] == '\0' ||
+        finding->title[0] == '\0' || !audit_status_valid(finding->status) ||
+        finding->severity[0] == '\0' || finding->category[0] == '\0' ||
+        audit_findings_count >= AUDIT_FINDING_MAX)
+        return -1;
+
+    audit_finding_t *stored = &audit_findings[audit_findings_count];
+    memset(stored, 0, sizeof(*stored));
+    audit_copy_field(stored->rule_id, sizeof(stored->rule_id), finding->rule_id);
+    audit_copy_field(stored->title, sizeof(stored->title), finding->title);
+    audit_copy_field(stored->description, sizeof(stored->description), finding->description);
+    audit_copy_field(stored->severity, sizeof(stored->severity), finding->severity);
+    audit_copy_field(stored->category, sizeof(stored->category), finding->category);
+    audit_copy_field(stored->status, sizeof(stored->status), finding->status);
+    audit_copy_field(stored->evidence, sizeof(stored->evidence), finding->evidence);
+    audit_copy_field(stored->remediation, sizeof(stored->remediation), finding->remediation);
+    audit_copy_field(stored->references, sizeof(stored->references), finding->references);
+    audit_findings_count++;
+    audit_update_summary(stored->status);
+    return 0;
+}
+
+size_t audit_finding_count(void) {
+    return audit_findings_count;
+}
+
+const audit_finding_t *audit_finding_get(size_t index) {
+    return index < audit_findings_count ? &audit_findings[index] : NULL;
 }
 
 void audit_get_summary(audit_summary_t *summary) {
@@ -84,42 +156,119 @@ static int audit_json_write_string(FILE *stream, const char *value) {
     return fputc('"', stream) == EOF ? -1 : 0;
 }
 
+static int audit_json_write_finding(FILE *stream, const audit_finding_t *finding) {
+    if (fputs("{\"rule_id\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->rule_id) != 0 ||
+        fputs(",\"title\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->title) != 0 ||
+        fputs(",\"description\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->description) != 0 ||
+        fputs(",\"severity\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->severity) != 0 ||
+        fputs(",\"category\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->category) != 0 ||
+        fputs(",\"status\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->status) != 0 ||
+        fputs(",\"evidence\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->evidence) != 0 ||
+        fputs(",\"remediation\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->remediation) != 0 ||
+        fputs(",\"references\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->references) != 0 ||
+        fputc('}', stream) == EOF)
+        return -1;
+    return 0;
+}
+
 int audit_write_json_summary(FILE *stream, const char *version) {
     if (stream == NULL || version == NULL)
         return -1;
 
     const char *status = audit_summary.failed != 0 ? "failed" :
                          audit_summary.unverified != 0 ? "unverified" : "passed";
-    if (fputs("{\"schema_version\":1,\"tool\":\"slacksecchk\",\"version\":", stream) == EOF ||
+    if (fputs("{\"schema_version\":2,\"tool\":\"slacksecchk\",\"version\":", stream) == EOF ||
         audit_json_write_string(stream, version) != 0)
         return -1;
     if (fprintf(stream,
-                ",\"status\":\"%s\",\"summary\":{\"passed\":%lu,\"failed\":%lu,\"unverified\":%lu}}\n",
+                ",\"status\":\"%s\",\"summary\":{\"passed\":%lu,\"failed\":%lu,\"unverified\":%lu},\"findings\":[",
                 status, audit_summary.passed, audit_summary.failed,
                 audit_summary.unverified) < 0)
         return -1;
-    return 0;
+
+    for (size_t i = 0; i < audit_findings_count; i++) {
+        if ((i != 0 && fputc(',', stream) == EOF) ||
+            audit_json_write_finding(stream, &audit_findings[i]) != 0)
+            return -1;
+    }
+    return fputs("]}\n", stream) == EOF ? -1 : 0;
 }
 
-static void audit_record_format(const char *format) {
-    if (strstr(format, "PASSED!") != NULL)
-        audit_summary.passed++;
-    if (strstr(format, "FAILED!") != NULL)
-        audit_summary.failed++;
-    if (strstr(format, "Notice:") != NULL || strstr(format, "Error:") != NULL)
-        audit_summary.unverified++;
+/* Compatibility adapter: existing rule output is converted into structured findings. */
+static void audit_record_legacy_output(const char *message) {
+    if (message == NULL)
+        return;
+
+    const char *marker = NULL;
+    const char *status = NULL;
+    const char *severity = AUDIT_SEVERITY_INFO;
+    if ((marker = strstr(message, "PASSED!")) != NULL) {
+        status = AUDIT_STATUS_PASS;
+    } else if ((marker = strstr(message, "FAILED!")) != NULL) {
+        status = AUDIT_STATUS_FAIL;
+        severity = AUDIT_SEVERITY_HIGH;
+    } else if ((marker = strstr(message, "Notice:")) != NULL) {
+        status = AUDIT_STATUS_WARN;
+        severity = AUDIT_SEVERITY_MEDIUM;
+    } else if ((marker = strstr(message, "Error:")) != NULL) {
+        status = AUDIT_STATUS_ERROR;
+        severity = AUDIT_SEVERITY_MEDIUM;
+    }
+    if (status == NULL)
+        return;
+
+    while (*marker != '\0' && !isspace((unsigned char)*marker))
+        marker++;
+    while (*marker == ' ' || *marker == '\t')
+        marker++;
+
+    char title[AUDIT_TITLE_SIZE];
+    size_t title_length = strcspn(marker, "\r\n");
+    if (title_length >= sizeof(title))
+        title_length = sizeof(title) - 1;
+    memcpy(title, marker, title_length);
+    title[title_length] = '\0';
+    if (title[0] == '\0')
+        audit_copy_field(title, sizeof(title), "Audit result");
+
+    audit_finding_t finding;
+    memset(&finding, 0, sizeof(finding));
+    audit_copy_field(finding.rule_id, sizeof(finding.rule_id), audit_current_rule);
+    audit_copy_field(finding.title, sizeof(finding.title), title);
+    audit_copy_field(finding.description, sizeof(finding.description), title);
+    audit_copy_field(finding.severity, sizeof(finding.severity), severity);
+    audit_copy_field(finding.category, sizeof(finding.category), audit_current_category);
+    audit_copy_field(finding.status, sizeof(finding.status), status);
+    audit_copy_field(finding.evidence, sizeof(finding.evidence), message);
+    (void)audit_finding_add(&finding);
 }
 
 int audit_printf(const char *format, ...) {
     if (format == NULL)
         return -1;
 
-    audit_record_format(format);
     va_list args;
     va_start(args, format);
+    va_list copy;
+    va_copy(copy, args);
+    char rendered[2048];
+    int rendered_length = vsnprintf(rendered, sizeof(rendered), format, copy);
+    va_end(copy);
+    if (rendered_length >= 0)
+        audit_record_legacy_output(rendered);
+
     if (audit_json_output) {
         va_end(args);
-        return 0;
+        return rendered_length < 0 ? -1 : rendered_length;
     }
     if (audit_color_enabled()) {
         int result = vfprintf(stdout, format, args);
