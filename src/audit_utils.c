@@ -285,3 +285,44 @@ int audit_capture_command(const char *const argv[], char *output, size_t output_
     if (truncated) return -2;
     return status;
 }
+
+
+int audit_config_value_equals(const char *config, const char *key, const char *expected) {
+    if (config == NULL || key == NULL || key[0] == '\0' || expected == NULL)
+        return -1;
+
+    char *copy = strdup(config);
+    if (copy == NULL)
+        return -1;
+
+    int found = 0;
+    int matches = 0;
+    char *save = NULL;
+    for (char *line = strtok_r(copy, "\n", &save);
+         line != NULL; line = strtok_r(NULL, "\n", &save)) {
+        char *active = audit_trim(line);
+        if (*active == '\0' || *active == '#')
+            continue;
+
+        char *value = active;
+        while (*value != '\0' && !isspace((unsigned char)*value))
+            value++;
+        if (*value == '\0')
+            continue;
+        *value++ = '\0';
+        if (strcasecmp(active, key) != 0)
+            continue;
+
+        value = audit_trim(value);
+        found++;
+        if (strcmp(value, expected) == 0)
+            matches++;
+    }
+
+    free(copy);
+    if (found > 1)
+        return -1;
+    if (found == 0)
+        return 0;
+    return matches == 1 ? 1 : 0;
+}
