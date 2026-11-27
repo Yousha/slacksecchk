@@ -39,17 +39,19 @@ void check_tcp_wrappers() {
       printf(COLOR_YELLOW "  Notice: neither hosts.allow nor hosts.deny present.\n" COLOR_RESET); return;
    }
    FILE *deny = fopen("/etc/hosts.deny", "r");
-   int has_all = 0;
-   if (deny) {
-      char line[256];
-      while (fgets(line, sizeof(line), deny)) {
-         if (line[0] == '#') continue;
-         if (strstr(line, "ALL: ALL") || strstr(line, "ALL : ALL")) { has_all = 1; break; }
-      }
-      fclose(deny);
+   if (!deny) {
+      printf(COLOR_YELLOW "  Notice: /etc/hosts.deny cannot be read.\n" COLOR_RESET);
+      return;
    }
-   if (has_all) printf(COLOR_GREEN "  PASSED! hosts.deny has ALL: ALL.\n" COLOR_RESET);
-   else printf(COLOR_YELLOW "  Notice: no default ALL: ALL in hosts.deny.\n" COLOR_RESET);
+
+   int has_all = audit_hosts_deny_all(deny);
+   fclose(deny);
+   if (has_all == 1)
+      printf(COLOR_GREEN "  PASSED! hosts.deny has an exact ALL: ALL rule.\n" COLOR_RESET);
+   else if (has_all == 0)
+      printf(COLOR_YELLOW "  Notice: no exact ALL: ALL rule in hosts.deny.\n" COLOR_RESET);
+   else
+      printf(COLOR_YELLOW "  Notice: unable to parse hosts.deny completely.\n" COLOR_RESET);
 }
 
 void check_inetd_xinetd() {

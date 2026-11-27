@@ -106,12 +106,102 @@ static void test_module_name_matching(void) {
     if (modules) fclose(modules);
 }
 
+static void test_config_line_reader(void) {
+    /* Arrange */
+    FILE *stream = fixture_stream("  key = value  \r\n# comment\nlast");
+    char line[32];
+
+    /* Act / Assert */
+    ASSERT_TRUE(stream != NULL);
+    ASSERT_TRUE(audit_read_config_line(stream, line, sizeof(line)) == 1);
+    ASSERT_TRUE(strcmp(line, "  key = value  ") == 0);
+    ASSERT_TRUE(audit_read_config_line(stream, line, sizeof(line)) == 1);
+    ASSERT_TRUE(strcmp(line, "# comment") == 0);
+    ASSERT_TRUE(audit_read_config_line(stream, line, sizeof(line)) == 1);
+    ASSERT_TRUE(strcmp(line, "last") == 0);
+    ASSERT_TRUE(audit_read_config_line(stream, line, sizeof(line)) == 0);
+
+    /* Cleanup */
+    if (stream) fclose(stream);
+}
+
+static void test_config_directives(void) {
+    /* Arrange */
+    FILE *config = fixture_stream(
+        "  # password = commented\n"
+        "password2 = not-the-password\n"
+        "password = secret-hash\n"
+        "restricted\n"
+        "empty =   # no value\n");
+    FILE *near_match = fixture_stream("password2 = not-a-password\n");
+
+    /* Act / Assert */
+    ASSERT_TRUE(config != NULL && near_match != NULL);
+    ASSERT_TRUE(audit_config_has_directive(near_match, "password", 1) == 0);
+    ASSERT_TRUE(audit_config_has_directive(config, "password", 1) == 1);
+    rewind(config);
+    ASSERT_TRUE(audit_config_has_directive(config, "password2", 1) == 1);
+    rewind(config);
+    ASSERT_TRUE(audit_config_has_directive(config, "restricted", 0) == 1);
+    rewind(config);
+    ASSERT_TRUE(audit_config_has_directive(config, "missing", 0) == 0);
+    rewind(config);
+    ASSERT_TRUE(audit_config_has_directive(config, "empty", 1) == 0);
+
+    /* Cleanup */
+    if (config) fclose(config);
+    if (near_match) fclose(near_match);
+}
+
+static void test_hosts_deny_parser(void) {
+    /* Arrange */
+    FILE *safe = fixture_stream("  # ignored\n\nALL : ALL # deny all\n");
+    FILE *partial = fixture_stream("LOCAL: ALL\nALL: 192.0.2.1\n");
+    FILE *exception = fixture_stream("ALL: ALL EXCEPT 192.0.2.1\n");
+
+    /* Act / Assert */
+    ASSERT_TRUE(safe != NULL && audit_hosts_deny_all(safe) == 1);
+    ASSERT_TRUE(partial != NULL && audit_hosts_deny_all(partial) == 0);
+    ASSERT_TRUE(exception != NULL && audit_hosts_deny_all(exception) == 0);
+
+    /* Cleanup */
+    if (safe) fclose(safe);
+    if (partial) fclose(partial);
+    if (exception) fclose(exception);
+}
+
+static void test_overlong_config_line(void) {
+    /* Arrange */
+    char contents[1200];
+    memset(contents, 'x', sizeof(contents) - 2);
+    contents[sizeof(contents) - 2] = '\n';
+    contents[sizeof(contents) - 1] = '\0';
+    FILE *stream = fixture_stream(contents);
+    FILE *shadow = fixture_stream(contents);
+    FILE *modules = fixture_stream(contents);
+    char line[16];
+
+    /* Act / Assert */
+    ASSERT_TRUE(stream != NULL && audit_read_config_line(stream, line, sizeof(line)) == -2);
+    ASSERT_TRUE(shadow != NULL && audit_shadow_has_empty_password(shadow) == -1);
+    ASSERT_TRUE(modules != NULL && audit_module_is_loaded(modules, "not-a-module") == -1);
+
+    /* Cleanup */
+    if (stream) fclose(stream);
+    if (shadow) fclose(shadow);
+    if (modules) fclose(modules);
+}
+
 int main(void) {
     test_executable_detection();
     test_mount_options();
     test_integer_parsing();
     test_shadow_password_fields();
     test_module_name_matching();
+    test_config_line_reader();
+    test_config_directives();
+    test_hosts_deny_parser();
+    test_overlong_config_line();
 
     if (failures != 0) {
         fprintf(stderr, "%d assertion(s) failed.\n", failures);
