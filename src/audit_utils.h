@@ -46,4 +46,10 @@ int audit_run_command(const char *const argv[], int suppress_output);
 /* Capture stdout. Return exit code, -1 on error, or -2 when output is truncated. */
 int audit_capture_command(const char *const argv[], char *output, size_t output_size);
 
+/* Compare one exact key/value pair in command-generated configuration text.
+ * Return 1 for a match, 0 for missing/mismatched values, and -1 for invalid
+ * arguments or duplicate keys.
+ */
+int audit_config_value_equals(const char *config, const char *key, const char *expected);
+
 #endif

@@ -140,3 +140,34 @@ void check_sudo_config() {
       fclose(fp);
    }
 }
+
+
+void check_ssh_effective_config(void) {
+   printf("\n[Slackware] Checking effective SSH daemon configuration...\n");
+   const char *argv[] = {"sshd", "-T", NULL};
+   char output[16384];
+   int status = audit_capture_command(argv, output, sizeof(output));
+   if (status != 0) {
+      printf(COLOR_YELLOW "  Notice: effective sshd configuration is unavailable or incomplete (exit %d).\n" COLOR_RESET, status);
+      return;
+   }
+
+   const struct { const char *key; const char *expected; } required[] = {
+      {"permitrootlogin", "no"},
+      {"passwordauthentication", "no"},
+      {"permitemptypasswords", "no"},
+      {"pubkeyauthentication", "yes"},
+      {"x11forwarding", "no"},
+      {"maxauthtries", "4"},
+      {NULL, NULL}
+   };
+   for (int i = 0; required[i].key != NULL; i++) {
+      int result = audit_config_value_equals(output, required[i].key, required[i].expected);
+      if (result == 1)
+         printf(COLOR_GREEN "  PASSED! %s = %s\n" COLOR_RESET, required[i].key, required[i].expected);
+      else if (result == 0)
+         printf(COLOR_RED "  FAILED! %s should be %s.\n" COLOR_RESET, required[i].key, required[i].expected);
+      else
+         printf(COLOR_YELLOW "  Notice: %s is duplicated or ambiguous in sshd output.\n" COLOR_RESET, required[i].key);
+   }
+}

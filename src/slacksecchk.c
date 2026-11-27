@@ -104,6 +104,7 @@ int main() {
    check_empty_or_locked_shell_accounts();
    check_shells_file();
    check_sudo_config();
+   check_ssh_effective_config();
 
    /* 6. Filesystem & mounts */
    check_fstab_secure_options();
