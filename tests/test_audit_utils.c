@@ -133,9 +133,11 @@ static void test_config_directives(void) {
         "password = secret-hash\n"
         "restricted\n"
         "empty =   # no value\n");
+    FILE *near_match = fixture_stream("password2 = not-a-password\n");
 
     /* Act / Assert */
-    ASSERT_TRUE(config != NULL);
+    ASSERT_TRUE(config != NULL && near_match != NULL);
+    ASSERT_TRUE(audit_config_has_directive(near_match, "password", 1) == 0);
     ASSERT_TRUE(audit_config_has_directive(config, "password", 1) == 1);
     rewind(config);
     ASSERT_TRUE(audit_config_has_directive(config, "password2", 1) == 1);
@@ -148,6 +150,7 @@ static void test_config_directives(void) {
 
     /* Cleanup */
     if (config) fclose(config);
+    if (near_match) fclose(near_match);
 }
 
 static void test_hosts_deny_parser(void) {
