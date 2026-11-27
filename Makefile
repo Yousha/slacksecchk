@@ -7,7 +7,10 @@ CPPFLAGS ?=
 LDFLAGS ?=
 
 TARGET = artifacts/slacksecchk
-OBJS = artifacts/slacksecchk.o artifacts/rules.o artifacts/rules_extra.o artifacts/audit_utils.o
+OBJS = artifacts/slacksecchk.o artifacts/rules.o artifacts/audit_utils.o \
+       artifacts/rules_packages.o artifacts/rules_services.o artifacts/rules_boot.o \
+       artifacts/rules_kernel.o artifacts/rules_accounts.o artifacts/rules_filesystem.o \
+       artifacts/rules_network.o artifacts/rules_logging.o artifacts/rules_misc.o
 UNIT_TEST = artifacts/test_audit_utils
 
 all: $(TARGET)
