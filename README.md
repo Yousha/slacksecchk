@@ -12,7 +12,7 @@ SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a
 - Reviews selected password and account-policy settings.
 - Checks selected services, packages, logging, SSH, firewall, and kernel settings.
 - Uses Slackware package records and `/etc/rc.d` service scripts where applicable.
-- Provides a small C codebase intended to be extended with additional checks.
+- Organizes Slackware-specific checks into focused C modules for packages, services, boot, kernel, accounts, filesystems, networking, logging, and miscellaneous controls.
 
 ## Requirements
 
@@ -92,6 +92,8 @@ Build and run the smoke tests with:
 ```bash
 make test
 ```
+
+The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
 The test suite includes fixture-based unit tests for exact mount-option matching, strict integer parsing, shadow password-field parsing, and exact kernel-module matching. Tests use real temporary streams and no mocks or external services. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host. Run the complete suite with `make test`.
 

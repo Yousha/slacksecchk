@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')
@@ -72,4 +73,11 @@ int audit_module_is_loaded(FILE *stream, const char *module_name) {
             return 1;
     }
     return ferror(stream) ? -1 : 0;
+}
+
+int audit_is_executable(const char *path) {
+    struct stat st;
+    if (path == NULL || stat(path, &st) != 0)
+        return 0;
+    return (st.st_mode & S_IXUSR) != 0;
 }

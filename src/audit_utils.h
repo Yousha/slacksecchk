@@ -15,4 +15,7 @@ int audit_shadow_has_empty_password(FILE *stream);
 /* Return 1 when an exact module name is present in a /proc/modules-style stream. */
 int audit_module_is_loaded(FILE *stream, const char *module_name);
 
+/* Return 1 when the owner-execute bit is set, otherwise 0. */
+int audit_is_executable(const char *path);
+
 #endif
