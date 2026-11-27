@@ -1,4 +1,9 @@
 slacksecchk 1.1.0.0 - 2026-11-28
+* Add a structured finding model with stable rule IDs, severity, category, status, evidence, remediation, and references.
+* Replace marker-based summary counting with counters derived from structured findings.
+* Extend JSON output to schema version 2 with a complete findings array.
+* Add fixture tests for finding validation, status accounting, and JSON serialization.
+slacksecchk 1.1.0.0 - 2026-11-28
 * Add --format=json for machine-readable audit summaries and automation-friendly exit codes.
 * Add summary counters for passed, failed, and unverified output markers, with JSON escaping and fixture-based tests.
 * Add smoke coverage for JSON output shape and exit status.
