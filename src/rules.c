@@ -11,6 +11,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include "rules.h"
+#include "audit_utils.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -297,24 +298,14 @@ void check_empty_passwords(void) {
       printf(COLOR_YELLOW "Notice: cannot read /etc/shadow; result is unverified.\n" COLOR_RESET);
       return;
    }
-   char line[1024];
-   int empty = 0, errors = 0;
-   while (fgets(line, sizeof(line), fp)) {
-      char *first = strchr(line, ':');
-      char *second = first ? strchr(first + 1, ':') : NULL;
-      if (!first || !second) { errors++; continue; }
-      if (second == first + 1) {
-         printf(COLOR_RED "FAILED! Empty password field for account '%.*s'.\n" COLOR_RESET,
-                (int)(first - line), line);
-         empty++;
-      }
-   }
-   if (ferror(fp)) errors++;
+   int result = audit_shadow_has_empty_password(fp);
    fclose(fp);
-   if (errors)
-      printf(COLOR_YELLOW "Notice: %d malformed/unreadable shadow record(s).\n" COLOR_RESET, errors);
-   else if (!empty)
+   if (result == 1)
+      printf(COLOR_RED "FAILED! Empty password field(s) found.\n" COLOR_RESET);
+   else if (result == 0)
       printf(COLOR_GREEN "PASSED! No empty password fields found.\n" COLOR_RESET);
+   else
+      printf(COLOR_YELLOW "Notice: shadow audit incomplete or malformed.\n" COLOR_RESET);
 }
 
 void check_unused_kernel_modules() {
