@@ -247,8 +247,8 @@ static void audit_prepare_child_process(void) {
 }
 
 static void audit_prepare_parent_process(pid_t child) {
-    if (setpgid(child, child) != 0 && errno != EACCES && errno != ESRCH)
-        ; /* Child setup remains authoritative; failure is handled by child PID fallback. */
+    /* The child also calls setpgid() before exec to close the fork/exec race. */
+    (void)setpgid(child, child);
 }
 
 static int audit_kill_and_reap(pid_t child) {
