@@ -232,7 +232,30 @@ static void test_safe_command_execution(void) {
     unlink(marker);
 }
 
+
+static void test_config_value_equals(void) {
+    /* Arrange */
+    const char *duplicate =
+        "# generated configuration\n"
+        "  PermitRootLogin   no  \n"
+        "passwordauthentication yes\n"
+        "MaxAuthTries 4\n"
+        "PermitRootLogin yes\n";
+
+    /* Act / Assert */
+    ASSERT_TRUE(audit_config_value_equals(duplicate, "permitrootlogin", "no") == -1);
+    ASSERT_TRUE(audit_config_value_equals("PermitRootLogin no\n", "permitrootlogin", "no") == 1);
+    ASSERT_TRUE(audit_config_value_equals("PasswordAuthentication yes\n", "passwordauthentication", "no") == 0);
+    ASSERT_TRUE(audit_config_value_equals("MaxAuthTries 4\n", "maxauthtries", "4") == 1);
+    ASSERT_TRUE(audit_config_value_equals("MaxAuthTries 40\n", "maxauthtries", "4") == 0);
+    ASSERT_TRUE(audit_config_value_equals("PermitRootLogin no\n", "permitroot", "no") == 0);
+    ASSERT_TRUE(audit_config_value_equals("", "missing", "no") == 0);
+    ASSERT_TRUE(audit_config_value_equals(NULL, "key", "value") == -1);
+    ASSERT_TRUE(audit_config_value_equals("key value\n", NULL, "value") == -1);
+}
+
 int main(void) {
+    test_config_value_equals();
     test_safe_command_execution();
     test_executable_detection();
     test_mount_options();
