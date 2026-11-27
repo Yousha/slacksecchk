@@ -207,7 +207,7 @@ static void test_safe_command_execution(void) {
     const char *false_argv[] = {"/bin/false", NULL};
     const char *missing_argv[] = {"/definitely/not/a/real/command", NULL};
     const char *print_argv[] = {"/bin/printf", "%s", payload, NULL};
-    const char *large_argv[] = {"/usr/bin/yes", "x", NULL};
+    const char *large_argv[] = {"/usr/bin/seq", "1", "1000", NULL};
     char output[128];
     char *old_path = getenv("PATH") ? strdup(getenv("PATH")) : NULL;
 
