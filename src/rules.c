@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,13 +91,29 @@ void check_user_password_expiration() {
    (void)system("chage -l root | grep -E 'Password expires|Account expires' || echo '" COLOR_RED "FAILED! Could not verify password expiration for root." COLOR_RESET "'");
 }
 
-void check_firewall_rules() {
-   printf("\n[CIS] Checking firewall is configured... ");
-   if (system("iptables -L > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! iptables not configured or inactive.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_firewall_rules(void) {
+   printf("\n[CIS] Checking firewall configuration... ");
+   FILE *fp = popen("iptables-save 2>/dev/null", "r");
+   if (!fp) {
+      printf(COLOR_YELLOW "Notice: iptables state unavailable; firewall is unverified.\n" COLOR_RESET);
+      return;
    }
+   char line[512];
+   int has_filter = 0, has_input_rule = 0;
+   while (fgets(line, sizeof(line), fp)) {
+      if (!strncmp(line, "*filter", 7)) has_filter = 1;
+      if (!strncmp(line, "-A INPUT ", 9) || !strncmp(line, "-A FORWARD ", 11))
+         has_input_rule = 1;
+   }
+   int status = pclose(fp);
+   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+      printf(COLOR_YELLOW "Notice: iptables query failed; firewall is unverified.\n" COLOR_RESET);
+   else if (!has_filter)
+      printf(COLOR_YELLOW "Notice: no filter table was returned.\n" COLOR_RESET);
+   else if (has_input_rule)
+      printf(COLOR_GREEN "PASSED! Input/forward filter rules are present.\n" COLOR_RESET);
+   else
+      printf(COLOR_RED "FAILED! No INPUT or FORWARD rules were found.\n" COLOR_RESET);
 }
 
 void check_auditd() {
@@ -411,13 +428,28 @@ void check_usb_storage() {
    }
 }
 
-void check_open_ports() {
-   printf("\n[CIS] Checking for open ports... ");
-   if (system("netstat -tuln | grep -E '0.0.0.0:|:::' > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! Open ports found. Investigate unnecessary services.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_open_ports(void) {
+   printf("\n[CIS] Reviewing listening network sockets... ");
+   FILE *fp = popen("ss -H -tuln 2>/dev/null", "r");
+   if (!fp) {
+      printf(COLOR_YELLOW "Notice: unable to query listening sockets.\n" COLOR_RESET);
+      return;
    }
+   char line[512];
+   int count = 0;
+   while (fgets(line, sizeof(line), fp)) {
+      if (strstr(line, "0.0.0.0:") || strstr(line, "[::]:") || strstr(line, "*:")) {
+         printf("Review listener: %s", line);
+         count++;
+      }
+   }
+   int status = pclose(fp);
+   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+      printf(COLOR_YELLOW "Notice: socket query failed; results may be incomplete.\n" COLOR_RESET);
+   else if (!count)
+      printf(COLOR_GREEN "PASSED! No wildcard-bound listeners were reported.\n" COLOR_RESET);
+   else
+      printf(COLOR_YELLOW "Notice: %d wildcard-bound listener(s) require policy review.\n" COLOR_RESET, count);
 }
 
 void check_bootloader_password() {
