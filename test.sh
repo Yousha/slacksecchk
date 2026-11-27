@@ -110,6 +110,27 @@ if [[ $(wc -l < "$OUTPUT") -ne 1 ]] ||
 fi
 echo "PASS - JSON output and audit exit status"
 
+sarif_status=0
+SLACKSECCHK_TEST_MODE=1 "$BINARY" --format=sarif >"$OUTPUT" 2>&1 || sarif_status=$?
+if [[ $sarif_status -gt 2 ]]; then
+    echo "FAIL - SARIF mode returned unexpected exit code $sarif_status"
+    cat "$OUTPUT"
+    exit 1
+fi
+if [[ $(wc -l < "$OUTPUT") -ne 1 ]] ||
+   [[ $(head -c 1 "$OUTPUT") != "{" ]] ||
+   [[ $(tail -n 1 "$OUTPUT" | tr -d '\n' | tail -c 1) != "}" ]] ||
+   ! grep -Fq '"$schema":"https://json.schemastore.org/sarif-2.1.0.json"' "$OUTPUT" ||
+   ! grep -Fq '"version":"2.1.0"' "$OUTPUT" ||
+   ! grep -Fq '"tool":{"driver":' "$OUTPUT" ||
+   ! grep -Fq '"rules":[' "$OUTPUT" ||
+   ! grep -Fq '"results":[' "$OUTPUT"; then
+    echo "FAIL - SARIF output is not a single SARIF 2.1.0 document"
+    cat "$OUTPUT"
+    exit 1
+fi
+echo "PASS - SARIF 2.1.0 output and audit exit status"
+
 if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
     echo "FAIL - audit returned a non-zero exit status"
     cat "$OUTPUT"
