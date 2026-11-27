@@ -73,6 +73,7 @@ void check_uid0_users();
 void check_empty_or_locked_shell_accounts();
 void check_shells_file();
 void check_sudo_config();
+void check_ssh_effective_config(void);
 
 // 6. Filesystem & mounts
 void check_fstab_secure_options();
