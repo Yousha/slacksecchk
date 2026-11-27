@@ -68,6 +68,7 @@ Useful Make targets:
 | `--color=never`, `--no-color` | Disable ANSI colors. |
 | `--format=text` | Human-readable output (default). |
 | `--format=json` | Emit a JSON report with summary counters and structured findings. |
+| `--format=sarif` | Emit a SARIF 2.1.0 report for code-scanning and CI integrations. |
 
 Automatic color detection also respects `NO_COLOR` and `TERM=dumb`. Unknown options print usage information and return exit code `2`.
 
@@ -80,6 +81,8 @@ sudo slacksecchk --format=json
 \`\`\`
 
 The schema-v2 document includes `schema_version`, `tool`, `version`, overall `status`, summary counters (`passed`, `failed`, `unverified`), and a `findings` array. Each finding contains `rule_id`, `title`, `description`, `severity`, `category`, `status`, `evidence`, `remediation`, and `references`. Rule IDs are stable identifiers assigned by the audit entry point. Existing rule output is currently adapted into this model; evidence is retained from the emitted result line, while remediation and references are empty until a rule supplies explicit metadata. Status values are `PASS`, `FAIL`, `WARN`, `INFO`, `NOT_APPLICABLE`, and `ERROR`. In JSON mode, exit codes are `0` when no failed or unverified findings exist, `1` when at least one finding failed, and `2` when findings are unverified but none failed. Invalid command-line options also return `2` and write the error to stderr.
+
+SARIF mode emits a SARIF 2.1.0 document with a deduplicated tool rule catalog and reportable findings. `FAIL`, `WARN`, `ERROR`, and `INFO` statuses are emitted as SARIF results; `PASS` and `NOT_APPLICABLE` are retained in the JSON report but omitted from SARIF results. Severity maps to SARIF levels (`HIGH`/`CRITICAL` → `error`, `MEDIUM`/`LOW` → `warning`, `INFO` → `note`). The SARIF run properties include the same audit summary counters. Both machine-readable formats use the same structured finding store and automation exit-code policy.
 
 ## Usage
 
@@ -123,7 +126,7 @@ make test
 
 The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
-The fixture-based unit suite covers structured finding validation, stable rule IDs, status counters, JSON finding serialization, executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, output truncation, and timeout termination. Timeout tests use real sleeping processes and verify the timeout result for both execution and capture APIs. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
+The fixture-based unit suite covers structured finding validation, stable rule IDs, status counters, JSON and SARIF serialization, executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, output truncation, and timeout termination. Timeout tests use real sleeping processes and verify the timeout result for both execution and capture APIs. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
 
 ## CI
 
