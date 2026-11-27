@@ -34,7 +34,8 @@ static void print_usage(FILE *stream) {
       "      --color=MODE     Color mode: auto, always, or never.\n"
       "      --no-color       Disable colored output.\n"
       "      --format=text    Human-readable output (default).\n"
-      "      --format=json    Emit a machine-readable JSON summary.\n"\n      "      --format=sarif   Emit a SARIF 2.1.0 report.\n");
+      "      --format=json    Emit a machine-readable JSON summary.\n"
+      "      --format=sarif   Emit a SARIF 2.1.0 report.\n");
 }
 
 /**
