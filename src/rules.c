@@ -96,9 +96,23 @@ void check_disabled_service(const char *service_name) {
 void check_user_password_expiration() {
    printf("\n[CIS] Checking password expiration for user accounts... ");
    const char *argv[] = {"chage", "-l", "root", NULL};
-   int status = audit_run_command(argv, 0);
-   if (status != 0)
+   char output[8192];
+   int status = audit_capture_command(argv, output, sizeof(output));
+   if (status != 0) {
       printf(COLOR_YELLOW "Notice: unable to query root password expiration (exit %d).\n" COLOR_RESET, status);
+      return;
+   }
+   int found = 0;
+   char *save = NULL;
+   for (char *line = strtok_r(output, "\n", &save); line != NULL;
+        line = strtok_r(NULL, "\n", &save)) {
+      if (strstr(line, "Password expires") || strstr(line, "Account expires")) {
+         printf("%s\n", line);
+         found = 1;
+      }
+   }
+   if (!found)
+      printf(COLOR_YELLOW "Notice: password expiration fields were not returned.\n" COLOR_RESET);
 }
 
 void check_firewall_rules(void) {
@@ -118,7 +132,7 @@ void check_firewall_rules(void) {
       if (!strncmp(line, "-A INPUT ", 9) || !strncmp(line, "-A FORWARD ", 11))
          has_input_rule = 1;
    }
-   else if (!has_filter)
+   if (!has_filter)
       printf(COLOR_YELLOW "Notice: no filter table was returned.\n" COLOR_RESET);
    else if (has_input_rule)
       printf(COLOR_GREEN "PASSED! Input/forward filter rules are present.\n" COLOR_RESET);
@@ -130,8 +144,10 @@ void check_auditd() {
    printf("\n[CIS] Checking audit logging... ");
    const char *argv[] = {"service", "auditd", "status", NULL};
    int status = audit_run_command(argv, 1);
-   if (status != 0) {
-      printf(COLOR_RED "FAILED! auditd is not running (exit %d).\n" COLOR_RESET, status);
+   if (status == 126 || status == 127 || status < 0) {
+      printf(COLOR_YELLOW "Notice: auditd status could not be queried (exit %d).\n" COLOR_RESET, status);
+   } else if (status != 0) {
+      printf(COLOR_RED "FAILED! auditd is not running.\n" COLOR_RESET);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    }
@@ -450,7 +466,10 @@ void check_time_synchronization() {
    const char *chrony_argv[] = {"service", "chronyd", "status", NULL};
    int ntp_status = audit_run_command(ntp_argv, 1);
    int chrony_status = ntp_status == 0 ? 0 : audit_run_command(chrony_argv, 1);
-   if (ntp_status != 0 && chrony_status != 0) {
+   if ((ntp_status == 126 || ntp_status == 127 || ntp_status < 0) &&
+       (chrony_status == 126 || chrony_status == 127 || chrony_status < 0)) {
+      printf(COLOR_YELLOW "Notice: NTP/Chrony status could not be queried.\n" COLOR_RESET);
+   } else if (ntp_status != 0 && chrony_status != 0) {
       printf(COLOR_RED "FAILED! System time synchronization (NTP/Chrony) is not running.\n" COLOR_RESET);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
@@ -516,7 +535,7 @@ void check_open_ports(void) {
          count++;
       }
    }
-   else if (!count)
+   if (!count)
       printf(COLOR_GREEN "PASSED! No wildcard-bound listeners were reported.\n" COLOR_RESET);
    else
       printf(COLOR_YELLOW "Notice: %d wildcard-bound listener(s) require policy review.\n" COLOR_RESET, count);
