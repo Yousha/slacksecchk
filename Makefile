@@ -7,7 +7,7 @@ CPPFLAGS ?=
 LDFLAGS ?=
 
 TARGET = artifacts/slacksecchk
-OBJS = artifacts/slacksecchk.o artifacts/rules.o artifacts/rules_extra.o
+OBJS = artifacts/slacksecchk.o artifacts/rules.o
 
 all: $(TARGET)
 
