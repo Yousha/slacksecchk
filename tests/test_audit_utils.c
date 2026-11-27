@@ -192,7 +192,30 @@ static void test_overlong_config_line(void) {
     if (modules) fclose(modules);
 }
 
+
+static void test_safe_command_execution(void) {
+    /* Arrange */
+    const char *true_argv[] = {"/bin/true", NULL};
+    const char *false_argv[] = {"/bin/false", NULL};
+    const char *missing_argv[] = {"/definitely/not/a/real/command", NULL};
+    const char *print_argv[] = {"/bin/printf", "%s", "literal;$(touch /tmp/slacksecchk-shell-injection)", NULL};
+    const char *large_argv[] = {"/usr/bin/yes", "x", NULL};
+    char output[128];
+
+    /* Act / Assert */
+    ASSERT_TRUE(audit_run_command(true_argv, 1) == 0);
+    ASSERT_TRUE(audit_run_command(false_argv, 1) == 1);
+    ASSERT_TRUE(audit_run_command(missing_argv, 1) == 127);
+    ASSERT_TRUE(audit_capture_command(print_argv, output, sizeof(output)) == 0);
+    ASSERT_TRUE(strcmp(output, "literal;$(touch /tmp/slacksecchk-shell-injection)") == 0);
+    ASSERT_TRUE(access("/tmp/slacksecchk-shell-injection", F_OK) != 0);
+    ASSERT_TRUE(audit_capture_command(large_argv, output, sizeof(output)) == -2);
+    ASSERT_TRUE(audit_run_command(NULL, 1) == -1);
+    ASSERT_TRUE(audit_capture_command(true_argv, NULL, sizeof(output)) == -1);
+}
+
 int main(void) {
+    test_safe_command_execution();
     test_executable_detection();
     test_mount_options();
     test_integer_parsing();
