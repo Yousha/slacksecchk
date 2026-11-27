@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <limits.h>
 #include "rules.h"
+#include "audit_utils.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -21,19 +22,15 @@
 #define COLOR_RESET "\033[0m"
 
 static int read_sysctl_int(const char *path, int *value) {
-   FILE *f = fopen(path, "r");
-   if (!f) return -1;
-   char buf[64];
-   if (!fgets(buf, sizeof(buf), f)) { fclose(f); return -1; }
-   fclose(f);
-   char *end = NULL;
-   errno = 0;
-   long parsed = strtol(buf, &end, 10);
-   if (errno != 0 || end == buf) return -1;
-   while (*end == ' ' || *end == '\\t' || *end == '\\r' || *end == '\\n') end++;
-   if (*end != '\\0' || parsed < INT_MIN || parsed > INT_MAX) return -1;
-   *value = (int)parsed;
-   return 0;
+   FILE *fp = fopen(path, "r");
+   if (!fp) return -1;
+   char buffer[64];
+   int result = -1;
+   if (fgets(buffer, sizeof(buffer), fp) != NULL)
+      result = audit_parse_int(buffer, value);
+   if (ferror(fp)) result = -1;
+   fclose(fp);
+   return result;
 }
 
 static int is_executable(const char *path) {
@@ -229,22 +226,26 @@ void check_kernel_hardening_sysctls() {
    }
 }
 
-void check_unwanted_kernel_modules() {
+void check_unwanted_kernel_modules(void) {
    printf("\n[Slackware] Checking unwanted kernel modules...\n");
-   const char *mods[] = {"firewire-core", "cramfs", "freevxfs", "jffs2", "hfs", "hfsplus", "udf", NULL};
-   FILE *fp = fopen("/proc/modules", "r");
-   if (!fp) { printf(COLOR_YELLOW "  Notice: cannot read /proc/modules\n" COLOR_RESET); return; }
-   char line[512], loaded[4096] = {0};
-   while (fgets(line, sizeof(line), fp)) {
-      char name[128];
-      if (sscanf(line, "%127s", name) == 1) { strncat(loaded, name, sizeof(loaded)-strlen(loaded)-2); strcat(loaded, " "); }
+   const char *modules[] = {"firewire_core", "cramfs", "freevxfs", "jffs2", "hfs", "hfsplus", "udf", NULL};
+   int found = 0, errors = 0;
+   for (int i = 0; modules[i] != NULL; i++) {
+      FILE *fp = fopen("/proc/modules", "r");
+      if (!fp) { errors++; continue; }
+      int loaded = audit_module_is_loaded(fp, modules[i]);
+      if (fclose(fp) != 0) errors++;
+      if (loaded == 1) {
+         printf(COLOR_RED "  FAILED! Module %s is loaded.\n" COLOR_RESET, modules[i]);
+         found++;
+      } else if (loaded < 0) {
+         errors++;
+      }
    }
-   fclose(fp);
-   int any = 0;
-   for (int i = 0; mods[i]; i++) {
-      if (strstr(loaded, mods[i])) { printf(COLOR_RED "  FAILED! Module '%s' is loaded.\n" COLOR_RESET, mods[i]); any = 1; }
-   }
-   if (!any) printf(COLOR_GREEN "  PASSED! None of the listed modules are loaded.\n" COLOR_RESET);
+   if (errors)
+      printf(COLOR_YELLOW "  Notice: module inventory incomplete (%d error(s)).\n" COLOR_RESET, errors);
+   else if (!found)
+      printf(COLOR_GREEN "  PASSED! None of the listed modules are loaded.\n" COLOR_RESET);
 }
 
 void check_securetty() {
@@ -379,7 +380,7 @@ void check_fstab_secure_options() {
       if (sscanf(line, "%127s %127s %63s %255s", fs, mount, type, opts) < 4) continue;
       if (strcmp(mount, "/tmp") == 0 || strcmp(mount, "/var/tmp") == 0 || strcmp(mount, "/dev/shm") == 0) {
          checked = 1;
-         int ok = strstr(opts, "nodev") && strstr(opts, "nosuid") && strstr(opts, "noexec");
+         int ok = audit_has_mount_option(opts, "nodev") && audit_has_mount_option(opts, "nosuid") && audit_has_mount_option(opts, "noexec");
          if (ok) printf(COLOR_GREEN "  PASSED! %s has nodev,nosuid,noexec\n" COLOR_RESET, mount);
          else printf(COLOR_RED "  FAILED! %s options '%s'\n" COLOR_RESET, mount, opts);
       }
