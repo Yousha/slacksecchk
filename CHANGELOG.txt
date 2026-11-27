@@ -1,3 +1,16 @@
+slacksecchk 1.1.0.0 - 2026-11-27
+-------------------------
+* Major expansion of Slackware-specific security audits.
+* Package surface: slackpkg presence/config, package DB age, packages dir permissions.
+* rc.d model: enumerate enabled scripts, high-risk services, script permissions, rc.local/rc.M review.
+* Bootloader: LILO password+restricted, enhanced GRUB password detection, config file permissions.
+* Kernel: additional hardening sysctls (kptr_restrict, dmesg_restrict, ptrace_scope, rp_filter, syncookies, protected_hardlinks/symlinks, ASLR) and unwanted module checks.
+* Authentication: securetty, login.defs aging, PAM password quality, extra UID 0, empty passwords, shells hygiene, sudoers.
+* Filesystem: fstab secure options for tmp mounts, /tmp separation, hidepid, world-writable dirs.
+* Network: listening sockets on 0.0.0.0, tcp_wrappers, inetd/xinetd.
+* Logging: syslog remote reception review, /var/log permissions.
+* Misc: X11 -nolisten tcp, compiler presence, issue file leakage, legacy .rhosts/.netrc/hosts.equiv.
+
 slacksecchk 1.0.3.3 - Unreleased
 -------------------------
 * Align project metadata with the application version.

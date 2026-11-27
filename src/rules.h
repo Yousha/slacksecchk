@@ -43,4 +43,56 @@ void check_source_routed_packets();
 void check_icmp_redirects();
 void check_ipv6_router_advertisements();
 
+// === Expanded Slackware-focused audits (v1.1.0.0) ===
+
+// 1. Package & update surface
+void check_slackpkg_installed();
+void check_package_update_age();
+void check_packages_dir_permissions();
+
+// 2. rc.d service model
+void check_rc_d_enabled_services();
+void check_high_risk_rc_services();
+void check_rc_script_permissions();
+void check_rc_local_and_M();
+
+// 3. Bootloader expansions
+void check_lilo_password();
+void check_grub_password_enhanced();
+void check_bootloader_config_permissions();
+
+// 4. Kernel & sysctl expansions
+void check_kernel_hardening_sysctls();
+void check_unwanted_kernel_modules();
+
+// 5. Authentication & accounts
+void check_securetty();
+void check_login_defs();
+void check_pam_password_quality();
+void check_uid0_users();
+void check_empty_or_locked_shell_accounts();
+void check_shells_file();
+void check_sudo_config();
+
+// 6. Filesystem & mounts
+void check_fstab_secure_options();
+void check_tmp_separation();
+void check_proc_hidepid();
+void check_unexpected_world_writable_dirs();
+
+// 7. Network & listening services
+void check_listening_services();
+void check_tcp_wrappers();
+void check_inetd_xinetd();
+
+// 8. Logging & integrity
+void check_syslog_remote();
+void check_var_log_permissions();
+
+// 9. Misc high-signal
+void check_x11_nolisten();
+void check_compiler_toolchains();
+void check_issue_files();
+void check_legacy_trust_files();
+
 #endif // RULES_H
