@@ -95,12 +95,15 @@ fi
 if [[ $(wc -l < "$OUTPUT") -ne 1 ]] ||
    [[ $(head -c 1 "$OUTPUT") != "{" ]] ||
    [[ $(tail -n 1 "$OUTPUT" | tr -d '\n' | tail -c 1) != "}" ]] ||
-   ! grep -Fq '"schema_version":1' "$OUTPUT" ||
+   ! grep -Fq '"schema_version":2' "$OUTPUT" ||
    ! grep -Fq '"tool":"slacksecchk"' "$OUTPUT" ||
    ! grep -Fq '"summary":' "$OUTPUT" ||
    ! grep -Fq '"passed":' "$OUTPUT" ||
    ! grep -Fq '"failed":' "$OUTPUT" ||
-   ! grep -Fq '"unverified":' "$OUTPUT"; then
+   ! grep -Fq '"unverified":' "$OUTPUT" ||
+   ! grep -Fq '"findings":[' "$OUTPUT" ||
+   ! grep -Fq '"rule_id":' "$OUTPUT" ||
+   ! grep -Fq '"evidence":' "$OUTPUT"; then
     echo "FAIL - JSON output is not a single valid-shaped summary document"
     cat "$OUTPUT"
     exit 1
