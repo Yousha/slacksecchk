@@ -203,6 +203,7 @@ static void test_safe_command_execution(void) {
     char payload[256];
     snprintf(payload, sizeof(payload), "literal;$(touch %s)", marker);
     const char *true_argv[] = {"true", NULL};
+    const char *capture_true_argv[] = {"true", NULL};
     const char *false_argv[] = {"/bin/false", NULL};
     const char *missing_argv[] = {"/definitely/not/a/real/command", NULL};
     const char *print_argv[] = {"/bin/printf", "%s", payload, NULL};
@@ -213,6 +214,7 @@ static void test_safe_command_execution(void) {
     /* Act / Assert */
     ASSERT_TRUE(setenv("PATH", "/tmp/slacksecchk-no-such-path", 1) == 0);
     ASSERT_TRUE(audit_run_command(true_argv, 1) == 0);
+    ASSERT_TRUE(audit_capture_command(capture_true_argv, output, sizeof(output)) == 0);
     if (old_path != NULL) {
         ASSERT_TRUE(setenv("PATH", old_path, 1) == 0);
         free(old_path);
