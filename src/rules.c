@@ -68,13 +68,18 @@ void check_password_policy() {
 
 void check_service(const char *service_name) {
    printf("\n[CIS] Checking if service '%s' is running... ", service_name);
-   char command[256];
-   snprintf(command, sizeof(command), "pgrep %s > /dev/null 2>&1", service_name);
-   if (system(command) != 0) {
-      printf(COLOR_RED "FAILED! Service '%s' is not running.\n" COLOR_RESET, service_name);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   if (service_name == NULL || service_name[0] == '\0') {
+      printf(COLOR_YELLOW "Notice: invalid service name; status is unverified.\n" COLOR_RESET);
+      return;
    }
+   const char *argv[] = {"pgrep", "-x", "--", service_name, NULL};
+   int status = audit_run_command(argv, 1);
+   if (status == 0)
+      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   else if (status == 1)
+      printf(COLOR_RED "FAILED! Service '%s' is not running.\n" COLOR_RESET, service_name);
+   else
+      printf(COLOR_YELLOW "Notice: unable to query service '%s' (exit %d).\n" COLOR_RESET, service_name, status);
 }
 
 void check_disabled_service(const char *service_name) {
@@ -90,26 +95,29 @@ void check_disabled_service(const char *service_name) {
 
 void check_user_password_expiration() {
    printf("\n[CIS] Checking password expiration for user accounts... ");
-   (void)system("chage -l root | grep -E 'Password expires|Account expires' || echo '" COLOR_RED "FAILED! Could not verify password expiration for root." COLOR_RESET "'");
+   const char *argv[] = {"chage", "-l", "root", NULL};
+   int status = audit_run_command(argv, 0);
+   if (status != 0)
+      printf(COLOR_YELLOW "Notice: unable to query root password expiration (exit %d).\n" COLOR_RESET, status);
 }
 
 void check_firewall_rules(void) {
    printf("\n[CIS] Checking firewall configuration... ");
-   FILE *fp = popen("iptables-save 2>/dev/null", "r");
-   if (!fp) {
-      printf(COLOR_YELLOW "Notice: iptables state unavailable; firewall is unverified.\n" COLOR_RESET);
+   const char *argv[] = {"iptables-save", NULL};
+   char output[65536];
+   int status = audit_capture_command(argv, output, sizeof(output));
+   if (status != 0) {
+      printf(COLOR_YELLOW "Notice: iptables query failed or output was incomplete (exit %d).\n" COLOR_RESET, status);
       return;
    }
-   char line[512];
    int has_filter = 0, has_input_rule = 0;
-   while (fgets(line, sizeof(line), fp)) {
+   char *save = NULL;
+   for (char *line = strtok_r(output, "\n", &save); line != NULL;
+        line = strtok_r(NULL, "\n", &save)) {
       if (!strncmp(line, "*filter", 7)) has_filter = 1;
       if (!strncmp(line, "-A INPUT ", 9) || !strncmp(line, "-A FORWARD ", 11))
          has_input_rule = 1;
    }
-   int status = pclose(fp);
-   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
-      printf(COLOR_YELLOW "Notice: iptables query failed; firewall is unverified.\n" COLOR_RESET);
    else if (!has_filter)
       printf(COLOR_YELLOW "Notice: no filter table was returned.\n" COLOR_RESET);
    else if (has_input_rule)
@@ -120,8 +128,10 @@ void check_firewall_rules(void) {
 
 void check_auditd() {
    printf("\n[CIS] Checking audit logging... ");
-   if (system("service auditd status > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! auditd is not running.\n" COLOR_RESET);
+   const char *argv[] = {"service", "auditd", "status", NULL};
+   int status = audit_run_command(argv, 1);
+   if (status != 0) {
+      printf(COLOR_RED "FAILED! auditd is not running (exit %d).\n" COLOR_RESET, status);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    }
@@ -135,8 +145,13 @@ void check_access_control() {
 
 void check_logging() {
    printf("\n[CIS] Checking logging configurations... ");
-   if (system("service rsyslog status > /dev/null 2>&1") != 0 && system("service syslog-ng status > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! Logging service (rsyslog or syslog-ng) is not running.\n" COLOR_RESET);
+   const char *rsyslog_argv[] = {"service", "rsyslog", "status", NULL};
+   const char *syslogng_argv[] = {"service", "syslog-ng", "status", NULL};
+   int rsyslog_status = audit_run_command(rsyslog_argv, 1);
+   int syslogng_status = rsyslog_status == 0 ? 0 : audit_run_command(syslogng_argv, 1);
+   if (rsyslog_status != 0 && syslogng_status != 0) {
+      printf(COLOR_YELLOW "Notice: no logging service could be verified (rsyslog=%d, syslog-ng=%d).\n" COLOR_RESET,
+             rsyslog_status, syslogng_status);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
    }
@@ -159,9 +174,27 @@ void check_unnecessary_packages() {
    int failed = 0;
    for (int i = 0; i < (int)(sizeof(packages) / sizeof(packages[0])); i++) {
       printf("\n[CIS] Checking for unnecessary package '%s'... ", packages[i]);
-      char command[256];
-      snprintf(command, sizeof(command), "ls /var/log/packages | grep '^%s-' > /dev/null 2>&1", packages[i]);
-      if (system(command) == 0) {
+      DIR *dir = opendir("/var/log/packages");
+      if (dir == NULL) {
+         printf(COLOR_YELLOW "Notice: package database cannot be read.\n" COLOR_RESET);
+         failed = 1;
+         continue;
+      }
+      char prefix[64];
+      int length = snprintf(prefix, sizeof(prefix), "%s-", packages[i]);
+      int installed = 0;
+      struct dirent *entry;
+      while (length > 0 && (size_t)length < sizeof(prefix) &&
+             (entry = readdir(dir)) != NULL) {
+         if (strncmp(entry->d_name, prefix, (size_t)length) == 0) {
+            installed = 1;
+            break;
+         }
+      }
+      if (closedir(dir) != 0) {
+         printf(COLOR_YELLOW "Notice: package database read was incomplete.\n" COLOR_RESET);
+         failed = 1;
+      } else if (installed) {
          printf(COLOR_RED "FAILED! Unnecessary package '%s' is installed.\n" COLOR_RESET, packages[i]);
          failed = 1;
       }
@@ -310,11 +343,21 @@ void check_empty_passwords(void) {
 
 void check_unused_kernel_modules() {
    printf("\n[CIS] Checking for unused kernel modules for servers... ");
-   if (system("lsmod | grep -E 'usb_storage|firewire_core' > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! Unused kernel modules (usb_storage, firewire_core) are loaded.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   FILE *modules = fopen("/proc/modules", "r");
+   if (modules == NULL) {
+      printf(COLOR_YELLOW "Notice: kernel module inventory is unavailable.\n" COLOR_RESET);
+      return;
    }
+   int usb = audit_module_is_loaded(modules, "usb_storage");
+   rewind(modules);
+   int firewire = audit_module_is_loaded(modules, "firewire_core");
+   fclose(modules);
+   if (usb < 0 || firewire < 0)
+      printf(COLOR_YELLOW "Notice: kernel module inventory is incomplete.\n" COLOR_RESET);
+   else if (usb || firewire)
+      printf(COLOR_RED "FAILED! Unused kernel modules (usb_storage, firewire_core) are loaded.\n" COLOR_RESET);
+   else
+      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
 }
 
 void check_sensitive_commands() {
@@ -323,11 +366,30 @@ void check_sensitive_commands() {
       printf(COLOR_YELLOW "Notice: /etc/sudoers file not found.\n" COLOR_RESET);
       return;
    }
-   if (system("grep '^%%wheel' /etc/sudoers > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! Sensitive commands (sudo) are not properly restricted.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   FILE *sudoers = fopen("/etc/sudoers", "r");
+   if (sudoers == NULL) {
+      printf(COLOR_YELLOW "Notice: sudoers cannot be read; access policy is unverified.\n" COLOR_RESET);
+      return;
    }
+   char line[1024];
+   int wheel_rule = 0;
+   while (fgets(line, sizeof(line), sudoers) != NULL) {
+      char *active = audit_trim(line);
+      if (*active == '\0' || *active == '#') continue;
+      if (strncmp(active, "%wheel", 6) == 0 &&
+          (active[6] == '\0' || isspace((unsigned char)active[6]))) {
+         wheel_rule = 1;
+         break;
+      }
+   }
+   int read_error = ferror(sudoers);
+   fclose(sudoers);
+   if (read_error)
+      printf(COLOR_YELLOW "Notice: sudoers read was incomplete.\n" COLOR_RESET);
+   else if (wheel_rule)
+      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+   else
+      printf(COLOR_RED "FAILED! Sensitive commands (sudo) are not properly restricted.\n" COLOR_RESET);
 }
 
 void check_password_reuse_policy() {
@@ -384,7 +446,11 @@ void check_cron_jobs(void) {
 
 void check_time_synchronization() {
    printf("\n[CIS] Checking system time synchronization... ");
-   if (system("service ntp status > /dev/null 2>&1") != 0 && system("service chronyd status > /dev/null 2>&1") != 0) {
+   const char *ntp_argv[] = {"service", "ntp", "status", NULL};
+   const char *chrony_argv[] = {"service", "chronyd", "status", NULL};
+   int ntp_status = audit_run_command(ntp_argv, 1);
+   int chrony_status = ntp_status == 0 ? 0 : audit_run_command(chrony_argv, 1);
+   if (ntp_status != 0 && chrony_status != 0) {
       printf(COLOR_RED "FAILED! System time synchronization (NTP/Chrony) is not running.\n" COLOR_RESET);
    } else {
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
@@ -417,31 +483,39 @@ void check_selinux_apparmor() {
 
 void check_usb_storage() {
    printf("\n[CIS] Checking USB storage devices... ");
-   if (system("modprobe -n -v usb-storage | grep 'install /bin/true' > /dev/null 2>&1") != 0) {
+   const char *argv[] = {"modprobe", "-n", "-v", "usb-storage", NULL};
+   char output[4096];
+   int status = audit_capture_command(argv, output, sizeof(output));
+   if (status != 0)
+      printf(COLOR_YELLOW "Notice: USB storage policy could not be verified (exit %d).\n" COLOR_RESET, status);
+   else if (strstr(output, "install /bin/true") == NULL)
       printf(COLOR_RED "FAILED! USB storage devices are not disabled.\n" COLOR_RESET);
-   } else {
+   else
       printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
-   }
 }
 
 void check_open_ports(void) {
    printf("\n[CIS] Reviewing listening network sockets... ");
-   FILE *fp = popen("ss -H -tuln 2>/dev/null", "r");
-   if (!fp) {
-      printf(COLOR_YELLOW "Notice: unable to query listening sockets.\n" COLOR_RESET);
+   const char *ss_argv[] = {"ss", "-H", "-tuln", NULL};
+   char output[65536];
+   int status = audit_capture_command(ss_argv, output, sizeof(output));
+   if (status != 0) {
+      const char *netstat_argv[] = {"netstat", "-tuln", NULL};
+      status = audit_capture_command(netstat_argv, output, sizeof(output));
+   }
+   if (status != 0) {
+      printf(COLOR_YELLOW "Notice: socket query failed or output was incomplete (exit %d).\n" COLOR_RESET, status);
       return;
    }
-   char line[512];
+   char *save = NULL;
    int count = 0;
-   while (fgets(line, sizeof(line), fp)) {
+   for (char *line = strtok_r(output, "\n", &save); line != NULL;
+        line = strtok_r(NULL, "\n", &save)) {
       if (strstr(line, "0.0.0.0:") || strstr(line, "[::]:") || strstr(line, "*:")) {
-         printf("Review listener: %s", line);
+         printf("Review listener: %s\n", line);
          count++;
       }
    }
-   int status = pclose(fp);
-   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
-      printf(COLOR_YELLOW "Notice: socket query failed; results may be incomplete.\n" COLOR_RESET);
    else if (!count)
       printf(COLOR_GREEN "PASSED! No wildcard-bound listeners were reported.\n" COLOR_RESET);
    else
