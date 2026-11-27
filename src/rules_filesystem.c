@@ -15,10 +15,10 @@
 #define PATH_MAX 4096
 #endif
 
-#define COLOR_GREEN "\033[1;32m"
-#define COLOR_YELLOW "\033[1;33m"
-#define COLOR_RED "\033[1;31m"
-#define COLOR_RESET "\033[0m"
+#define COLOR_GREEN (audit_color_enabled() ? "\033[1;32m" : "")
+#define COLOR_YELLOW (audit_color_enabled() ? "\033[1;33m" : "")
+#define COLOR_RED (audit_color_enabled() ? "\033[1;31m" : "")
+#define COLOR_RESET (audit_color_enabled() ? "\033[0m" : "")
 
 void check_fstab_secure_options() {
    printf("\n[Slackware] Checking fstab secure options for tmp mounts...\n");
