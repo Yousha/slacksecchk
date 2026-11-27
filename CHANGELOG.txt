@@ -1,4 +1,8 @@
 slacksecchk 1.1.0.0 - 2026-11-27
+* Add shell-free process execution with a fixed executable search path and bounded stdout capture.
+* Replace shell pipelines and interpolated commands in audit checks with direct argv execution or native file parsing.
+* Remove temporary-file listener discovery and treat command failures or truncated output as unverified.
+* Add real-process tests for exit status, missing executables, PATH hijacking resistance, literal shell metacharacters, and output truncation.
 -------------------------
 * Replace expanded-check stubs with full implementations for all 9 Slackware audit categories.
 * Major expansion of Slackware-specific security audits.
