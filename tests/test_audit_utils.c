@@ -262,7 +262,7 @@ static void test_command_timeouts(void) {
     /* Act / Assert */
     ASSERT_TRUE(audit_run_command_timeout(sleep_argv, 1, 100) == -3);
     ASSERT_TRUE(audit_capture_command_timeout(sleep_argv, output, sizeof(output), 100) == -3);
-    ASSERT_TRUE(output[0] == '\\0');
+    ASSERT_TRUE(output[0] == '\0');
     ASSERT_TRUE(audit_run_command_timeout(sleep_argv, 1, 0) == -1);
     ASSERT_TRUE(audit_capture_command_timeout(sleep_argv, output, sizeof(output), 0) == -1);
 }
