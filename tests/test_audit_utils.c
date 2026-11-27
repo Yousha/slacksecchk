@@ -267,7 +267,56 @@ static void test_command_timeouts(void) {
     ASSERT_TRUE(audit_capture_command_timeout(sleep_argv, output, sizeof(output), 0) == -1);
 }
 
+static void test_json_result_summary(void) {
+    /* Arrange */
+    audit_summary_t summary;
+    FILE *stream = tmpfile();
+    char output[512];
+
+    audit_reset_summary();
+    audit_set_json_output(1);
+
+    /* Act */
+    audit_printf("PASSED!\n");
+    audit_printf("FAILED!\n");
+    audit_printf("Notice: incomplete\n");
+    audit_printf("Error: unreadable\n");
+    audit_get_summary(&summary);
+
+    /* Assert */
+    ASSERT_TRUE(summary.passed == 1);
+    ASSERT_TRUE(summary.failed == 1);
+    ASSERT_TRUE(summary.unverified == 2);
+    ASSERT_TRUE(audit_summary_exit_code() == 1);
+    ASSERT_TRUE(stream != NULL);
+    if (stream != NULL) {
+        ASSERT_TRUE(audit_write_json_summary(stream, "1.1\"\\release") == 0);
+        ASSERT_TRUE(fflush(stream) == 0);
+        ASSERT_TRUE(fseek(stream, 0, SEEK_SET) == 0);
+        size_t count = fread(output, 1, sizeof(output) - 1, stream);
+        output[count] = '\0';
+        ASSERT_TRUE(strstr(output, "\"schema_version\":1") != NULL);
+        ASSERT_TRUE(strstr(output, "\"version\":\"1.1\\\"\\\\release\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"status\":\"failed\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"passed\":1,\"failed\":1,\"unverified\":2") != NULL);
+        fclose(stream);
+    }
+
+    audit_reset_summary();
+    audit_printf("Notice: still incomplete\n");
+    audit_get_summary(&summary);
+    ASSERT_TRUE(summary.passed == 0 && summary.failed == 0 && summary.unverified == 1);
+    ASSERT_TRUE(audit_summary_exit_code() == 2);
+
+    audit_reset_summary();
+    audit_get_summary(&summary);
+    ASSERT_TRUE(audit_summary_exit_code() == 0);
+    ASSERT_TRUE(summary.passed == 0 && summary.failed == 0 && summary.unverified == 0);
+    audit_set_json_output(0);
+}
+
 int main(void) {
+    test_json_result_summary();
     test_command_timeouts();
     test_config_value_equals();
     test_safe_command_execution();
