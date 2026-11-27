@@ -105,6 +105,8 @@ void audit_set_json_output(int enabled);
 void audit_get_summary(audit_summary_t *summary);
 int audit_summary_exit_code(void);
 int audit_write_json_summary(FILE *stream, const char *version);
+/* Write a SARIF 2.1.0 report from the current structured findings. */
+int audit_write_sarif_report(FILE *stream, const char *version);
 
 /* Default upper bound for commands invoked by audit checks. */
 #define AUDIT_COMMAND_DEFAULT_TIMEOUT_MS 30000U
