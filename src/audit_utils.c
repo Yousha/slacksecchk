@@ -12,6 +12,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <signal.h>
+#include <time.h>
+#include <poll.h>
 
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')
@@ -208,22 +211,97 @@ int audit_is_executable(const char *path) {
     return (st.st_mode & S_IXUSR) != 0;
 }
 
-static int audit_wait_for_child(pid_t child) {
-    int status;
-    while (waitpid(child, &status, 0) < 0) {
-        if (errno == EINTR) continue;
+static int audit_deadline_after(unsigned int timeout_ms, struct timespec *deadline) {
+    if (timeout_ms == 0 || clock_gettime(CLOCK_MONOTONIC, deadline) != 0)
         return -1;
+    deadline->tv_sec += (time_t)(timeout_ms / 1000U);
+    deadline->tv_nsec += (long)(timeout_ms % 1000U) * 1000000L;
+    if (deadline->tv_nsec >= 1000000000L) {
+        deadline->tv_sec++;
+        deadline->tv_nsec -= 1000000000L;
     }
-    if (WIFEXITED(status)) return WEXITSTATUS(status);
-    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
-    return -1;
+    return 0;
 }
 
-int audit_run_command(const char *const argv[], int suppress_output) {
-    if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0') return -1;
+static int audit_remaining_ms(const struct timespec *deadline) {
+    struct timespec now;
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0)
+        return -1;
+    time_t seconds = deadline->tv_sec - now.tv_sec;
+    long nanoseconds = deadline->tv_nsec - now.tv_nsec;
+    if (nanoseconds < 0) {
+        seconds--;
+        nanoseconds += 1000000000L;
+    }
+    if (seconds < 0 || (seconds == 0 && nanoseconds <= 0))
+        return 0;
+    if (seconds > INT_MAX / 1000)
+        return INT_MAX;
+    long long milliseconds = (long long)seconds * 1000LL +
+                             (nanoseconds + 999999L) / 1000000L;
+    return milliseconds > INT_MAX ? INT_MAX : (int)milliseconds;
+}
+
+static void audit_prepare_child_process(void) {
+    (void)setpgid(0, 0);
+}
+
+static void audit_prepare_parent_process(pid_t child) {
+    /* The child also calls setpgid() before exec to close the fork/exec race. */
+    (void)setpgid(child, child);
+}
+
+static int audit_kill_and_reap(pid_t child) {
+    if (kill(-child, SIGKILL) != 0)
+        (void)kill(child, SIGKILL);
+    int status;
+    while (waitpid(child, &status, 0) < 0) {
+        if (errno == EINTR)
+            continue;
+        return -1;
+    }
+    return 0;
+}
+
+static int audit_wait_for_child_until(pid_t child, const struct timespec *deadline) {
+    for (;;) {
+        int status;
+        pid_t result = waitpid(child, &status, WNOHANG);
+        if (result == child) {
+            if (WIFEXITED(status)) return WEXITSTATUS(status);
+            if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+            return -1;
+        }
+        if (result < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        int remaining = audit_remaining_ms(deadline);
+        if (remaining <= 0) {
+            (void)audit_kill_and_reap(child);
+            return remaining == 0 ? -3 : -1;
+        }
+        struct timespec pause = {0, 10000000L};
+        if (remaining < 10)
+            pause.tv_nsec = (long)remaining * 1000000L;
+        while (nanosleep(&pause, &pause) != 0 && errno == EINTR)
+            ;
+    }
+}
+
+int audit_run_command_timeout(const char *const argv[], int suppress_output,
+                              unsigned int timeout_ms) {
+    if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0')
+        return -1;
+    struct timespec deadline;
+    if (audit_deadline_after(timeout_ms, &deadline) != 0)
+        return -1;
+
     pid_t child = fork();
-    if (child < 0) return -1;
+    if (child < 0)
+        return -1;
     if (child == 0) {
+        audit_prepare_child_process();
         if (suppress_output) {
             int null_fd = open("/dev/null", O_WRONLY);
             if (null_fd >= 0) {
@@ -237,20 +315,34 @@ int audit_run_command(const char *const argv[], int suppress_output) {
         execvp(argv[0], (char *const *)argv);
         _exit(errno == ENOENT ? 127 : 126);
     }
-    return audit_wait_for_child(child);
+    audit_prepare_parent_process(child);
+    return audit_wait_for_child_until(child, &deadline);
 }
 
-int audit_capture_command(const char *const argv[], char *output, size_t output_size) {
+int audit_capture_command_timeout(const char *const argv[], char *output,
+                                  size_t output_size, unsigned int timeout_ms) {
     if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0' ||
-        output == NULL || output_size == 0) return -1;
+        output == NULL || output_size == 0)
+        return -1;
+    struct timespec deadline;
+    if (audit_deadline_after(timeout_ms, &deadline) != 0)
+        return -1;
+
     output[0] = '\0';
     int fds[2];
-    if (pipe(fds) != 0) return -1;
+    if (pipe(fds) != 0)
+        return -1;
     pid_t child = fork();
-    if (child < 0) { close(fds[0]); close(fds[1]); return -1; }
-    if (child == 0) {
+    if (child < 0) {
         close(fds[0]);
-        if (dup2(fds[1], STDOUT_FILENO) < 0) _exit(126);
+        close(fds[1]);
+        return -1;
+    }
+    if (child == 0) {
+        audit_prepare_child_process();
+        close(fds[0]);
+        if (dup2(fds[1], STDOUT_FILENO) < 0)
+            _exit(126);
         close(fds[1]);
         int null_fd = open("/dev/null", O_WRONLY);
         if (null_fd >= 0) {
@@ -262,31 +354,75 @@ int audit_capture_command(const char *const argv[], char *output, size_t output_
         execvp(argv[0], (char *const *)argv);
         _exit(errno == ENOENT ? 127 : 126);
     }
+
+    audit_prepare_parent_process(child);
     close(fds[1]);
     size_t used = 0;
-    int truncated = 0, read_error = 0;
+    int truncated = 0;
     char chunk[4096];
     for (;;) {
+        int remaining = audit_remaining_ms(&deadline);
+        if (remaining <= 0) {
+            close(fds[0]);
+            (void)audit_kill_and_reap(child);
+            output[used] = '\0';
+            return remaining == 0 ? -3 : -1;
+        }
+        struct pollfd descriptor = {fds[0], POLLIN | POLLHUP, 0};
+        int ready = poll(&descriptor, 1, remaining);
+        if (ready < 0) {
+            if (errno == EINTR)
+                continue;
+            close(fds[0]);
+            (void)audit_kill_and_reap(child);
+            output[used] = '\0';
+            return -1;
+        }
+        if (ready == 0) {
+            close(fds[0]);
+            (void)audit_kill_and_reap(child);
+            output[used] = '\0';
+            return -3;
+        }
         ssize_t count = read(fds[0], chunk, sizeof(chunk));
-        if (count == 0) break;
-        if (count < 0) {
-            if (errno == EINTR) continue;
-            read_error = 1;
+        if (count == 0)
             break;
+        if (count < 0) {
+            if (errno == EINTR || errno == EAGAIN)
+                continue;
+            close(fds[0]);
+            (void)audit_kill_and_reap(child);
+            output[used] = '\0';
+            return -1;
         }
         size_t available = output_size - 1 - used;
         size_t copy_count = (size_t)count < available ? (size_t)count : available;
-        if (copy_count) { memcpy(output + used, chunk, copy_count); used += copy_count; }
-        if (copy_count < (size_t)count) truncated = 1;
+        if (copy_count != 0) {
+            memcpy(output + used, chunk, copy_count);
+            used += copy_count;
+        }
+        if (copy_count < (size_t)count)
+            truncated = 1;
     }
     close(fds[0]);
     output[used] = '\0';
-    int status = audit_wait_for_child(child);
-    if (read_error || status < 0) return -1;
-    if (truncated) return -2;
+    int status = audit_wait_for_child_until(child, &deadline);
+    if (status < 0)
+        return status;
+    if (truncated)
+        return -2;
     return status;
 }
 
+int audit_run_command(const char *const argv[], int suppress_output) {
+    return audit_run_command_timeout(argv, suppress_output,
+                                     AUDIT_COMMAND_DEFAULT_TIMEOUT_MS);
+}
+
+int audit_capture_command(const char *const argv[], char *output, size_t output_size) {
+    return audit_capture_command_timeout(argv, output, output_size,
+                                         AUDIT_COMMAND_DEFAULT_TIMEOUT_MS);
+}
 
 int audit_config_value_equals(const char *config, const char *key, const char *expected) {
     if (config == NULL || key == NULL || key[0] == '\0' || expected == NULL)

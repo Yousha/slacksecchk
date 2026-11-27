@@ -15,6 +15,7 @@ SlackSecChk is a C-based security-audit utility for Slackware Linux. It checks a
 - Organizes Slackware-specific checks into focused C modules for packages, services, boot, kernel, accounts, filesystems, networking, logging, and miscellaneous controls.
 - Parses selected security configuration directives exactly and treats incomplete or overlong records as unverifiable.
 - Reviews effective OpenSSH daemon settings and additional kernel attack-surface sysctls when exposed by the running kernel.
+- Bounds external audit commands with a 30-second default timeout and terminates their process groups when they exceed it.
 
 ## Requirements
 
@@ -97,7 +98,7 @@ make test
 
 The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
-The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, and output truncation. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
+The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution, plus exact key/value matching for generated configuration output. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, output truncation, and timeout termination. Timeout tests use real sleeping processes and verify the timeout result for both execution and capture APIs. Configuration-value tests cover case-insensitive keys, whitespace, exact values, missing keys, and duplicate-key ambiguity. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
 
 ## CI
 

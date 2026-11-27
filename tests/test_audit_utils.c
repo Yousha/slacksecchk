@@ -254,7 +254,21 @@ static void test_config_value_equals(void) {
     ASSERT_TRUE(audit_config_value_equals("key value\n", NULL, "value") == -1);
 }
 
+static void test_command_timeouts(void) {
+    /* Arrange */
+    const char *sleep_argv[] = {"/bin/sleep", "5", NULL};
+    char output[32];
+
+    /* Act / Assert */
+    ASSERT_TRUE(audit_run_command_timeout(sleep_argv, 1, 100) == -3);
+    ASSERT_TRUE(audit_capture_command_timeout(sleep_argv, output, sizeof(output), 100) == -3);
+    ASSERT_TRUE(output[0] == '\0');
+    ASSERT_TRUE(audit_run_command_timeout(sleep_argv, 1, 0) == -1);
+    ASSERT_TRUE(audit_capture_command_timeout(sleep_argv, output, sizeof(output), 0) == -1);
+}
+
 int main(void) {
+    test_command_timeouts();
     test_config_value_equals();
     test_safe_command_execution();
     test_executable_detection();
