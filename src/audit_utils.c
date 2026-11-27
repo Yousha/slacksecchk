@@ -68,7 +68,7 @@ int audit_printf(const char *format, ...) {
         }
         plain[target++] = format[source++];
     }
-    plain[target] = '\\0';
+    plain[target] = '\0';
     int result = vfprintf(stdout, plain, args);
     free(plain);
     va_end(args);
