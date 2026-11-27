@@ -25,19 +25,19 @@
 
 static void print_usage(FILE *stream) {
    fprintf(stream,
-      "Usage: slacksecchk [OPTIONS]\\n"
-      "Run the configured Slackware security audit.\\n\\n"
-      "Options:\\n"
-      "  -h, --help           Show this help and exit.\\n"
-      "  -V, --version        Show version information and exit.\\n"
-      "      --color=MODE     Color mode: auto, always, or never.\\n"
-      "      --no-color       Disable colored output.\\n");
+      "Usage: slacksecchk [OPTIONS]\n"
+      "Run the configured Slackware security audit.\n\n"
+      "Options:\n"
+      "  -h, --help           Show this help and exit.\n"
+      "  -V, --version        Show version information and exit.\n"
+      "      --color=MODE     Color mode: auto, always, or never.\n"
+      "      --no-color       Disable colored output.\n");
 }
 
 /**
  * @brief Entry point for slacksecchk program.
  *
- * @return int Returns 0 If successful execution of all audits.
+ * @return 0 when the audit completes, 2 for invalid command-line arguments.
  */
 int main(int argc, char *argv[]) {
    int show_help = 0;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i], "--color=auto") == 0) {
          color_mode = AUDIT_COLOR_AUTO;
       } else {
-         fprintf(stderr, "slacksecchk: unknown option: %s\\n", argv[i]);
+         fprintf(stderr, "slacksecchk: unknown option: %s\n", argv[i]);
          print_usage(stderr);
          return 2;
       }
@@ -67,12 +67,12 @@ int main(int argc, char *argv[]) {
       return 0;
    }
    if (show_version) {
-      printf("slacksecchk %s\\n", SLACKSECCHK_VERSION);
+      printf("slacksecchk %s\n", SLACKSECCHK_VERSION);
       return 0;
    }
    audit_set_color_mode(color_mode);
    printf("\n");
-   printf("slacksecchk 1.1.0.0\n");
+   printf("slacksecchk %s\n", SLACKSECCHK_VERSION);
    printf("slacksecchk: Auditing system security...\n");
 
    /* Classic CIS-style checks */
