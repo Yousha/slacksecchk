@@ -94,7 +94,7 @@ if [[ $json_status -gt 2 ]]; then
 fi
 if [[ $(wc -l < "$OUTPUT") -ne 1 ]] ||
    [[ $(head -c 1 "$OUTPUT") != "{" ]] ||
-   [[ $(tail -c 1 "$OUTPUT") != "}" ]] ||
+   [[ $(tail -n 1 "$OUTPUT" | tr -d '\n' | tail -c 1) != "}" ]] ||
    ! grep -Fq '"schema_version":1' "$OUTPUT" ||
    ! grep -Fq '"tool":"slacksecchk"' "$OUTPUT" ||
    ! grep -Fq '"summary":' "$OUTPUT" ||
