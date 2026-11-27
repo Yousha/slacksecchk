@@ -49,12 +49,56 @@ void audit_set_color_mode(int mode);
 int audit_color_enabled(void);
 int audit_printf(const char *format, ...);
 
-/* Summary counters represent emitted result markers, not unique rule IDs. */
+/* Structured audit finding statuses. */
+#define AUDIT_STATUS_PASS "PASS"
+#define AUDIT_STATUS_FAIL "FAIL"
+#define AUDIT_STATUS_WARN "WARN"
+#define AUDIT_STATUS_INFO "INFO"
+#define AUDIT_STATUS_NOT_APPLICABLE "NOT_APPLICABLE"
+#define AUDIT_STATUS_ERROR "ERROR"
+
+#define AUDIT_SEVERITY_INFO "INFO"
+#define AUDIT_SEVERITY_LOW "LOW"
+#define AUDIT_SEVERITY_MEDIUM "MEDIUM"
+#define AUDIT_SEVERITY_HIGH "HIGH"
+#define AUDIT_SEVERITY_CRITICAL "CRITICAL"
+
+#define AUDIT_FINDING_MAX 512
+#define AUDIT_RULE_ID_SIZE 64
+#define AUDIT_TITLE_SIZE 160
+#define AUDIT_DESCRIPTION_SIZE 512
+#define AUDIT_SEVERITY_SIZE 16
+#define AUDIT_CATEGORY_SIZE 64
+#define AUDIT_STATUS_SIZE 20
+#define AUDIT_EVIDENCE_SIZE 1024
+#define AUDIT_REMEDIATION_SIZE 512
+#define AUDIT_REFERENCES_SIZE 256
+
+typedef struct {
+    char rule_id[AUDIT_RULE_ID_SIZE];
+    char title[AUDIT_TITLE_SIZE];
+    char description[AUDIT_DESCRIPTION_SIZE];
+    char severity[AUDIT_SEVERITY_SIZE];
+    char category[AUDIT_CATEGORY_SIZE];
+    char status[AUDIT_STATUS_SIZE];
+    char evidence[AUDIT_EVIDENCE_SIZE];
+    char remediation[AUDIT_REMEDIATION_SIZE];
+    char references[AUDIT_REFERENCES_SIZE];
+} audit_finding_t;
+
 typedef struct {
     unsigned long passed;
     unsigned long failed;
     unsigned long unverified;
 } audit_summary_t;
+
+/* Set the stable rule identity used by legacy audit_printf result adapters. */
+void audit_set_current_rule(const char *rule_id, const char *category);
+/* Add a validated structured finding. Returns 0 on success, -1 on invalid input/capacity. */
+int audit_finding_add(const audit_finding_t *finding);
+/* Return the number of stored findings and a read-only finding by index. */
+size_t audit_finding_count(void);
+const audit_finding_t *audit_finding_get(size_t index);
 
 void audit_reset_summary(void);
 void audit_set_json_output(int enabled);
