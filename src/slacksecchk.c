@@ -94,13 +94,13 @@ int main(int argc, char *argv[]) {
    check_log_files();
    audit_set_current_rule("SSC-PASSWORD-POLICY", "accounts");
    check_password_policy();
-   audit_set_current_rule("SSC-SERVICE", "services");
+   audit_set_current_rule("SSC-SERVICE-SSH", "services");
    check_service("ssh");
-   audit_set_current_rule("SSC-SERVICE", "services");
+   audit_set_current_rule("SSC-SERVICE-FIREWALLD", "services");
    check_service("firewalld");
-   audit_set_current_rule("SSC-DISABLED-SERVICE", "services");
+   audit_set_current_rule("SSC-DISABLED-SERVICE-TELNET", "services");
    check_disabled_service("telnet");
-   audit_set_current_rule("SSC-DISABLED-SERVICE", "services");
+   audit_set_current_rule("SSC-DISABLED-SERVICE-VSFTPD", "services");
    check_disabled_service("vsftpd");
    audit_set_current_rule("SSC-USER-PASSWORD-EXPIRATION", "accounts");
    check_user_password_expiration();
