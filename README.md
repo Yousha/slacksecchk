@@ -48,7 +48,7 @@ Useful Make targets:
 | `make` | Build the optimized executable. |
 | `make debug` | Clean and build with debug symbols. |
 | `make clean` | Remove generated build files. |
-| `make test` | Run the smoke tests (builds first if needed). |
+| `make test` | Build and run fixture-based unit tests plus the isolated smoke test. |
 | `make checksums` | Generate a fresh `Checksums.sha256` manifest for the working tree. |
 | `sudo make install` | Install to `/usr/local/bin/slacksecchk` (requires root privileges). |
 | `sudo make uninstall` | Remove the installed executable (requires root privileges). |
@@ -93,7 +93,7 @@ Build and run the smoke tests with:
 make test
 ```
 
-The current tests verify that the executable starts and completes an audit run. The smoke test stubs recursive filesystem searches so CI does not audit the runner host. It does not validate the correctness of individual security checks.
+The test suite includes fixture-based unit tests for exact mount-option matching, strict integer parsing, shadow password-field parsing, and exact kernel-module matching. Tests use real temporary streams and no mocks or external services. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host. Run the complete suite with `make test`.
 
 ## CI
 
