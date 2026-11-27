@@ -32,7 +32,9 @@ static void print_usage(FILE *stream) {
       "  -h, --help           Show this help and exit.\n"
       "  -V, --version        Show version information and exit.\n"
       "      --color=MODE     Color mode: auto, always, or never.\n"
-      "      --no-color       Disable colored output.\n");
+      "      --no-color       Disable colored output.\n"
+      "      --format=text    Human-readable output (default).\n"
+      "      --format=json    Emit a machine-readable JSON summary.\n");
 }
 
 /**
@@ -44,6 +46,7 @@ int main(int argc, char *argv[]) {
    int show_help = 0;
    int show_version = 0;
    int color_mode = AUDIT_COLOR_AUTO;
+   int json_output = 0;
 
    for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -56,6 +59,10 @@ int main(int argc, char *argv[]) {
          color_mode = AUDIT_COLOR_ALWAYS;
       } else if (strcmp(argv[i], "--color=auto") == 0) {
          color_mode = AUDIT_COLOR_AUTO;
+      } else if (strcmp(argv[i], "--format=json") == 0) {
+         json_output = 1;
+      } else if (strcmp(argv[i], "--format=text") == 0) {
+         json_output = 0;
       } else {
          fprintf(stderr, "slacksecchk: unknown option: %s\n", argv[i]);
          print_usage(stderr);
@@ -71,6 +78,8 @@ int main(int argc, char *argv[]) {
       printf("slacksecchk %s\n", SLACKSECCHK_VERSION);
       return 0;
    }
+   audit_reset_summary();
+   audit_set_json_output(json_output);
    audit_set_color_mode(color_mode);
    printf("\n");
    printf("slacksecchk %s\n", SLACKSECCHK_VERSION);
@@ -173,6 +182,12 @@ int main(int argc, char *argv[]) {
    check_compiler_toolchains();
    check_issue_files();
    check_legacy_trust_files();
+
+   if (json_output) {
+      if (audit_write_json_summary(stdout, SLACKSECCHK_VERSION) != 0)
+         return 2;
+      return audit_summary_exit_code();
+   }
 
    printf("\n");
    printf("slacksecchk: Audit has finished.\n");
