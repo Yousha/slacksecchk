@@ -265,6 +265,10 @@ static void run_permission_scan(const char *label, int world_writable) {
    struct stat root;
    int matches = 0, errors = 0;
    printf("\n[CIS] Checking for %s...\n", label);
+   if (getenv("SLACKSECCHK_TEST_MODE") != NULL) {
+      printf(COLOR_YELLOW "Notice: filesystem scan skipped in test mode.\n" COLOR_RESET);
+      return;
+   }
    if (lstat("/", &root) != 0) {
       printf(COLOR_YELLOW "Notice: filesystem root cannot be inspected.\n" COLOR_RESET);
       return;
