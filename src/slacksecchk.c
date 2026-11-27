@@ -17,14 +17,60 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "rules.h"
+#include "audit_utils.h"
+
+#define SLACKSECCHK_VERSION "1.1.0.0"
+
+static void print_usage(FILE *stream) {
+   fprintf(stream,
+      "Usage: slacksecchk [OPTIONS]\\n"
+      "Run the configured Slackware security audit.\\n\\n"
+      "Options:\\n"
+      "  -h, --help           Show this help and exit.\\n"
+      "  -V, --version        Show version information and exit.\\n"
+      "      --color=MODE     Color mode: auto, always, or never.\\n"
+      "      --no-color       Disable colored output.\\n");
+}
 
 /**
  * @brief Entry point for slacksecchk program.
  *
  * @return int Returns 0 If successful execution of all audits.
  */
-int main() {
+int main(int argc, char *argv[]) {
+   int show_help = 0;
+   int show_version = 0;
+   int color_mode = AUDIT_COLOR_AUTO;
+
+   for (int i = 1; i < argc; i++) {
+      if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+         show_help = 1;
+      } else if (strcmp(argv[i], "-V") == 0 || strcmp(argv[i], "--version") == 0) {
+         show_version = 1;
+      } else if (strcmp(argv[i], "--no-color") == 0 || strcmp(argv[i], "--color=never") == 0) {
+         color_mode = AUDIT_COLOR_NEVER;
+      } else if (strcmp(argv[i], "--color=always") == 0) {
+         color_mode = AUDIT_COLOR_ALWAYS;
+      } else if (strcmp(argv[i], "--color=auto") == 0) {
+         color_mode = AUDIT_COLOR_AUTO;
+      } else {
+         fprintf(stderr, "slacksecchk: unknown option: %s\\n", argv[i]);
+         print_usage(stderr);
+         return 2;
+      }
+   }
+
+   if (show_help) {
+      print_usage(stdout);
+      return 0;
+   }
+   if (show_version) {
+      printf("slacksecchk %s\\n", SLACKSECCHK_VERSION);
+      return 0;
+   }
+   audit_set_color_mode(color_mode);
    printf("\n");
    printf("slacksecchk 1.1.0.0\n");
    printf("slacksecchk: Auditing system security...\n");
