@@ -1,4 +1,7 @@
 slacksecchk 1.1.0.0 - 2026-11-27
+* Expand effective OpenSSH hardening checks for root login, password authentication, empty passwords, public-key authentication, X11 forwarding, and authentication attempts.
+* Add kernel hardening checks for unprivileged BPF, perf events, and BPF JIT hardening when supported by the running kernel.
+* Add exact, case-insensitive configuration key/value parsing with duplicate-key ambiguity detection and fixture tests.
 * Add shell-free process execution with a fixed executable search path and bounded stdout capture.
 * Replace shell pipelines and interpolated commands in audit checks with direct argv execution or native file parsing.
 * Remove temporary-file listener discovery and treat command failures or truncated output as unverified.
