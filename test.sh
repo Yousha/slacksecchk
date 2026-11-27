@@ -85,6 +85,28 @@ if awk 'index($0, sprintf("%c", 27)) { found=1; exit } END { exit !found }' "$OU
 fi
 echo "PASS - automatic color is disabled for redirected output"
 
+json_status=0
+SLACKSECCHK_TEST_MODE=1 "$BINARY" --format=json >"$OUTPUT" 2>&1 || json_status=$?
+if [[ $json_status -gt 2 ]]; then
+    echo "FAIL - JSON mode returned unexpected exit code $json_status"
+    cat "$OUTPUT"
+    exit 1
+fi
+if [[ $(wc -l < "$OUTPUT") -ne 1 ]] ||
+   [[ $(head -c 1 "$OUTPUT") != "{" ]] ||
+   [[ $(tail -c 1 "$OUTPUT") != "}" ]] ||
+   ! grep -Fq '"schema_version":1' "$OUTPUT" ||
+   ! grep -Fq '"tool":"slacksecchk"' "$OUTPUT" ||
+   ! grep -Fq '"summary":' "$OUTPUT" ||
+   ! grep -Fq '"passed":' "$OUTPUT" ||
+   ! grep -Fq '"failed":' "$OUTPUT" ||
+   ! grep -Fq '"unverified":' "$OUTPUT"; then
+    echo "FAIL - JSON output is not a single valid-shaped summary document"
+    cat "$OUTPUT"
+    exit 1
+fi
+echo "PASS - JSON output and audit exit status"
+
 if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
     echo "FAIL - audit returned a non-zero exit status"
     cat "$OUTPUT"
