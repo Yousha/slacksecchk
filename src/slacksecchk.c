@@ -20,6 +20,7 @@
 #include <string.h>
 #include "rules.h"
 #include "audit_utils.h"
+#define printf audit_printf
 
 #define SLACKSECCHK_VERSION "1.1.0.0"
 
