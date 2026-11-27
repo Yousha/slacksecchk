@@ -15,10 +15,10 @@
 #define PATH_MAX 4096
 #endif
 
-#define COLOR_GREEN "\033[1;32m"
-#define COLOR_YELLOW "\033[1;33m"
-#define COLOR_RED "\033[1;31m"
-#define COLOR_RESET "\033[0m"
+#define COLOR_GREEN (audit_color_enabled() ? "\033[1;32m" : "")
+#define COLOR_YELLOW (audit_color_enabled() ? "\033[1;33m" : "")
+#define COLOR_RED (audit_color_enabled() ? "\033[1;31m" : "")
+#define COLOR_RESET (audit_color_enabled() ? "\033[0m" : "")
 
 void check_rc_d_enabled_services() {
    printf("\n[Slackware] Enumerating executable rc.d scripts...\n");
