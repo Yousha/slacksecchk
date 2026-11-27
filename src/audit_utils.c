@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
