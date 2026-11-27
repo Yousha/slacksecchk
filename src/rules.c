@@ -18,10 +18,10 @@
 #endif
 
 // ANSI color codes for terminal output.
-#define COLOR_GREEN "\033[1;32m"
-#define COLOR_YELLOW "\033[1;33m"
-#define COLOR_RED "\033[1;31m"
-#define COLOR_RESET "\033[0m"
+#define COLOR_GREEN (audit_color_enabled() ? "\033[1;32m" : "")
+#define COLOR_YELLOW (audit_color_enabled() ? "\033[1;33m" : "")
+#define COLOR_RED (audit_color_enabled() ? "\033[1;31m" : "")
+#define COLOR_RESET (audit_color_enabled() ? "\033[0m" : "")
 
 void check_file_permissions(const char *filename, mode_t expected_mode) {
    printf("\n[CIS] Checking if file permission '%s' is secure... ", filename);
