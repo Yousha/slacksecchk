@@ -308,6 +308,53 @@ static void test_structured_findings(void) {
     ASSERT_TRUE(audit_finding_count() == 0);
 }
 
+static void test_sarif_report(void) {
+    /* Arrange */
+    audit_finding_t finding;
+    FILE *stream = tmpfile();
+    char output[4096];
+    memset(&finding, 0, sizeof(finding));
+    strcpy(finding.rule_id, "SSC-SSH-CONFIG");
+    strcpy(finding.title, "SSH root login is enabled");
+    strcpy(finding.description, "Root login is permitted.");
+    strcpy(finding.severity, AUDIT_SEVERITY_HIGH);
+    strcpy(finding.category, "accounts");
+    strcpy(finding.status, AUDIT_STATUS_FAIL);
+    strcpy(finding.evidence, "permitrootlogin yes");
+    strcpy(finding.remediation, "Set PermitRootLogin no.");
+    strcpy(finding.references, "CIS SSH guidance");
+    audit_reset_summary();
+
+    /* Act */
+    ASSERT_TRUE(audit_finding_add(&finding) == 0);
+    strcpy(finding.rule_id, "SSC-SSH-PASS");
+    strcpy(finding.status, AUDIT_STATUS_PASS);
+    strcpy(finding.severity, AUDIT_SEVERITY_INFO);
+    ASSERT_TRUE(audit_finding_add(&finding) == 0);
+    strcpy(finding.rule_id, "SSC-SSH-WARN");
+    strcpy(finding.status, AUDIT_STATUS_WARN);
+    strcpy(finding.severity, AUDIT_SEVERITY_MEDIUM);
+    ASSERT_TRUE(audit_finding_add(&finding) == 0);
+
+    /* Assert */
+    ASSERT_TRUE(stream != NULL);
+    if (stream != NULL) {
+        ASSERT_TRUE(audit_write_sarif_report(stream, "1.1.0.0") == 0);
+        ASSERT_TRUE(fflush(stream) == 0);
+        ASSERT_TRUE(fseek(stream, 0, SEEK_SET) == 0);
+        size_t count = fread(output, 1, sizeof(output) - 1, stream);
+        output[count] = '\0';
+        ASSERT_TRUE(strstr(output, "\"version\":\"2.1.0\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"ruleId\":\"SSC-SSH-CONFIG\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"level\":\"error\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"level\":\"warning\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"remediation\":\"Set PermitRootLogin no.\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"ruleId\":\"SSC-SSH-PASS\"") == NULL);
+        fclose(stream);
+    }
+    audit_reset_summary();
+}
+
 static void test_command_timeouts(void) {
     /* Arrange */
     const char *sleep_argv[] = {"/bin/sleep", "5", NULL};
@@ -371,6 +418,7 @@ static void test_json_result_summary(void) {
 
 int main(void) {
     test_structured_findings();
+    test_sarif_report();
     test_json_result_summary();
     test_command_timeouts();
     test_config_value_equals();
