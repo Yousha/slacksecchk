@@ -530,7 +530,7 @@ void check_open_ports(void) {
    int count = 0;
    for (char *line = strtok_r(output, "\n", &save); line != NULL;
         line = strtok_r(NULL, "\n", &save)) {
-      if (strstr(line, "0.0.0.0:") || strstr(line, "[::]:") || strstr(line, "*:")) {
+      if (strstr(line, "0.0.0.0:") || strstr(line, "[::]:") || strstr(line, ":::") || strstr(line, "*:")) {
          printf("Review listener: %s\n", line);
          count++;
       }
