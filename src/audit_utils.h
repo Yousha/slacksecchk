@@ -41,9 +41,16 @@ int audit_config_has_directive(FILE *stream, const char *directive, int require_
 /* Return 1 for an exact "ALL: ALL" hosts.deny rule, 0 when absent, -1 on read error. */
 int audit_hosts_deny_all(FILE *stream);
 
-/* Run argv directly without a shell. Return child exit code or -1 on error. */
+/* Default upper bound for commands invoked by audit checks. */
+#define AUDIT_COMMAND_DEFAULT_TIMEOUT_MS 30000U
+
+/* Timeout-aware process APIs: -1 error, -2 truncated capture, -3 timed out. */
+int audit_run_command_timeout(const char *const argv[], int suppress_output, unsigned int timeout_ms);
+int audit_capture_command_timeout(const char *const argv[], char *output, size_t output_size, unsigned int timeout_ms);
+
+/* Run argv directly without a shell; applies the default command timeout. */
 int audit_run_command(const char *const argv[], int suppress_output);
-/* Capture stdout. Return exit code, -1 on error, or -2 when output is truncated. */
+/* Capture stdout with the default command timeout. */
 int audit_capture_command(const char *const argv[], char *output, size_t output_size);
 
 /* Compare one exact key/value pair in command-generated configuration text.
