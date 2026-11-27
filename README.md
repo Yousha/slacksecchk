@@ -96,7 +96,7 @@ make test
 
 The source is organized by audit domain: classic CIS/DISA/NSA checks remain in `rules.c`, while Slackware-specific checks are separated into focused `rules_*.c` modules. Shared parsing helpers live in `audit_utils.c`.
 
-The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, and `hosts.deny` rule parsing. Tests use real temporary files and streams, follow Arrange-Act-Assert structure, and use no mocks or external services. Overlong configuration records are rejected rather than parsed as partial input. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
+The fixture-based unit suite covers executable-file detection, exact mount-option matching, strict integer parsing, shadow password-field parsing, exact kernel-module matching, bounded configuration-line reading, exact bootloader directives, `hosts.deny` parsing, and shell-free process execution. Process tests use real binaries and verify exit statuses, missing commands, literal shell metacharacters, and output truncation. Tests follow Arrange-Act-Assert structure and use no mocks or external services. Overlong configuration records and command output are not treated as complete results. The smoke test sets `SLACKSECCHK_TEST_MODE=1` so recursive filesystem scans are skipped on the CI host.
 
 ## CI
 
