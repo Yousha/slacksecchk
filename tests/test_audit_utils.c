@@ -292,16 +292,16 @@ static void test_structured_findings(void) {
         ASSERT_TRUE(fflush(stream) == 0);
         ASSERT_TRUE(fseek(stream, 0, SEEK_SET) == 0);
         size_t count = fread(output, 1, sizeof(output) - 1, stream);
-        output[count] = '\\0';
-        ASSERT_TRUE(strstr(output, "\\"schema_version\\":2") != NULL);
-        ASSERT_TRUE(strstr(output, "\\"rule_id\\":\\"SSC-SSH-CONFIG\\"") != NULL);
-        ASSERT_TRUE(strstr(output, "\\"severity\\":\\"HIGH\\"") != NULL);
-        ASSERT_TRUE(strstr(output, "\\"evidence\\":\\"permitrootlogin yes\\"") != NULL);
-        ASSERT_TRUE(strstr(output, "\\"remediation\\":\\"Set PermitRootLogin no and reload sshd.\\"") != NULL);
+        output[count] = '\0';
+        ASSERT_TRUE(strstr(output, "\"schema_version\":2") != NULL);
+        ASSERT_TRUE(strstr(output, "\"rule_id\":\"SSC-SSH-CONFIG\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"severity\":\"HIGH\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"evidence\":\"permitrootlogin yes\"") != NULL);
+        ASSERT_TRUE(strstr(output, "\"remediation\":\"Set PermitRootLogin no and reload sshd.\"") != NULL);
         fclose(stream);
     }
 
-    finding.status[0] = '\\0';
+    finding.status[0] = '\0';
     ASSERT_TRUE(audit_finding_add(&finding) == -1);
     ASSERT_TRUE(audit_finding_add(NULL) == -1);
     audit_reset_summary();
