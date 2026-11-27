@@ -43,47 +43,8 @@ int audit_parse_int(const char *text, int *value) {
     return 0;
 }
 
-int audit_shadow_has_empty_password(FILE *stream) {
-    if (stream == NULL)
-        return -1;
-
-    char line[1024];
-    int found = 0;
-    while (fgets(line, sizeof(line), stream) != NULL) {
-        char *first = strchr(line, ':');
-        char *second = first ? strchr(first + 1, ':') : NULL;
-        if (first == NULL || second == NULL)
-            return -1;
-        if (second == first + 1)
-            found = 1;
-    }
-    return ferror(stream) ? -1 : found;
-}
-
-int audit_module_is_loaded(FILE *stream, const char *module_name) {
-    if (stream == NULL || module_name == NULL || module_name[0] == '\0')
-        return -1;
-
-    char line[512];
-    while (fgets(line, sizeof(line), stream) != NULL) {
-        char name[128];
-        if (sscanf(line, "%127s", name) != 1)
-            return -1;
-        if (strcmp(name, module_name) == 0)
-            return 1;
-    }
-    return ferror(stream) ? -1 : 0;
-}
-
-int audit_is_executable(const char *path) {
-    struct stat st;
-    if (path == NULL || stat(path, &st) != 0)
-        return 0;
-    return (st.st_mode & S_IXUSR) != 0;
-}
-
 int audit_read_config_line(FILE *stream, char *buffer, size_t size) {
-    if (stream == NULL || buffer == NULL || size < 2)
+    if (stream == NULL || buffer == NULL || size < 2 || size > INT_MAX)
         return -1;
 
     if (fgets(buffer, (int)size, stream) == NULL)
@@ -198,4 +159,45 @@ int audit_hosts_deny_all(FILE *stream) {
             return 1;
     }
     return status == 0 ? 0 : -1;
+}
+
+int audit_shadow_has_empty_password(FILE *stream) {
+    if (stream == NULL)
+        return -1;
+
+    char line[1024];
+    int found = 0;
+    int status;
+    while ((status = audit_read_config_line(stream, line, sizeof(line))) == 1) {
+        char *first = strchr(line, ':');
+        char *second = first ? strchr(first + 1, ':') : NULL;
+        if (first == NULL || second == NULL)
+            return -1;
+        if (second == first + 1)
+            found = 1;
+    }
+    return status == 0 ? found : -1;
+}
+
+int audit_module_is_loaded(FILE *stream, const char *module_name) {
+    if (stream == NULL || module_name == NULL || module_name[0] == '\0')
+        return -1;
+
+    char line[512];
+    int status;
+    while ((status = audit_read_config_line(stream, line, sizeof(line))) == 1) {
+        char name[128];
+        if (sscanf(line, "%127s", name) != 1)
+            return -1;
+        if (strcmp(name, module_name) == 0)
+            return 1;
+    }
+    return status == 0 ? 0 : -1;
+}
+
+int audit_is_executable(const char *path) {
+    struct stat st;
+    if (path == NULL || stat(path, &st) != 0)
+        return 0;
+    return (st.st_mode & S_IXUSR) != 0;
 }
