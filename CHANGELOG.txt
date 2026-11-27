@@ -1,3 +1,8 @@
+slacksecchk 1.1.0.0 - 2026-11-28
+* Add help and version command-line options and reject unknown options with exit code 2.
+* Add automatic terminal color detection with NO_COLOR and TERM=dumb support.
+* Add --color=auto|always|never and --no-color options for predictable redirected output.
+* Add smoke tests for CLI options and ANSI color behavior.
 slacksecchk 1.1.0.0 - 2026-11-27
 * Expand effective OpenSSH hardening checks for root login, password authentication, empty passwords, public-key authentication, X11 forwarding, and authentication attempts.
 * Add kernel hardening checks for unprivileged BPF, perf events, and BPF JIT hardening when supported by the running kernel.

@@ -41,6 +41,14 @@ int audit_config_has_directive(FILE *stream, const char *directive, int require_
 /* Return 1 for an exact "ALL: ALL" hosts.deny rule, 0 when absent, -1 on read error. */
 int audit_hosts_deny_all(FILE *stream);
 
+/* Terminal color modes: automatic TTY detection, forced colors, or disabled. */
+#define AUDIT_COLOR_AUTO 0
+#define AUDIT_COLOR_ALWAYS 1
+#define AUDIT_COLOR_NEVER 2
+void audit_set_color_mode(int mode);
+int audit_color_enabled(void);
+int audit_printf(const char *format, ...);
+
 /* Default upper bound for commands invoked by audit checks. */
 #define AUDIT_COMMAND_DEFAULT_TIMEOUT_MS 30000U
 

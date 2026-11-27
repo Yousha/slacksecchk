@@ -14,32 +14,103 @@ fi
 
 echo "Running SlackSecChk smoke tests..."
 
+if ! "$BINARY" --help >"$OUTPUT" 2>&1 || ! grep -Fq "Usage: slacksecchk" "$OUTPUT"; then
+    echo "FAIL - help output"
+    cat "$OUTPUT"
+    exit 1
+fi
+echo "PASS - help output"
+
+if ! "$BINARY" --version >"$OUTPUT" 2>&1 || ! grep -Fxq "slacksecchk 1.1.0.0" "$OUTPUT"; then
+    echo "FAIL - version output"
+    cat "$OUTPUT"
+    exit 1
+fi
+echo "PASS - version output"
+
+if "$BINARY" --invalid-option >"$OUTPUT" 2>&1; then
+    echo "FAIL - invalid option was accepted"
+    exit 1
+else
+    status=$?
+    if [[ $status -ne 2 ]]; then
+        echo "FAIL - invalid option returned $status instead of 2"
+        cat "$OUTPUT"
+        exit 1
+    fi
+fi
+echo "PASS - invalid option returns exit code 2"
+
+if ! NO_COLOR=1 SLACKSECCHK_TEST_MODE=1 "$BINARY" >"$OUTPUT" 2>&1; then
+    echo "FAIL - NO_COLOR audit execution"
+    cat "$OUTPUT"
+    exit 1
+fi
+if awk 'index($0, sprintf("%c", 27)) { found=1; exit } END { exit !found }' "$OUTPUT"; then
+    echo "FAIL - NO_COLOR did not suppress ANSI escapes"
+    exit 1
+fi
+echo "PASS - NO_COLOR suppresses ANSI escapes"
+
+if ! SLACKSECCHK_TEST_MODE=1 "$BINARY" --color=always >"$OUTPUT" 2>&1; then
+    echo "FAIL - forced-color audit execution"
+    cat "$OUTPUT"
+    exit 1
+fi
+if ! awk 'index($0, sprintf("%c", 27)) { found=1; exit } END { exit !found }' "$OUTPUT"; then
+    echo "FAIL - --color=always did not emit ANSI escapes"
+    exit 1
+fi
+echo "PASS - --color=always emits ANSI escapes"
+
+if ! SLACKSECCHK_TEST_MODE=1 "$BINARY" --no-color >"$OUTPUT" 2>&1; then
+    echo "FAIL - no-color audit execution"
+    cat "$OUTPUT"
+    exit 1
+fi
+if awk 'index($0, sprintf("%c", 27)) { found=1; exit } END { exit !found }' "$OUTPUT"; then
+    echo "FAIL - --no-color emitted ANSI escapes"
+    exit 1
+fi
+echo "PASS - --no-color suppresses ANSI escapes"
+
+if ! SLACKSECCHK_TEST_MODE=1 "$BINARY" >"$OUTPUT" 2>&1; then
+    echo "FAIL - automatic-color audit execution"
+    cat "$OUTPUT"
+    exit 1
+fi
+if awk 'index($0, sprintf("%c", 27)) { found=1; exit } END { exit !found }' "$OUTPUT"; then
+    echo "FAIL - automatic color emitted ANSI escapes to redirected output"
+    exit 1
+fi
+echo "PASS - automatic color is disabled for redirected output"
+
 if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
-    echo "Test failed: the program returned a non-zero exit status."
+    echo "FAIL - audit returned a non-zero exit status"
     cat "$OUTPUT"
     exit 1
 fi
 
 if grep -Fq "Auditing system security" "$OUTPUT"; then
-    echo "Test #1: PASS - audit starts"
+    echo "PASS - audit starts"
 else
-    echo "Test #1: FAIL - audit start message not found"
+    echo "FAIL - audit start message not found"
     cat "$OUTPUT"
     exit 1
 fi
 
 if grep -Fq "Audit has finished" "$OUTPUT"; then
-    echo "Test #2: PASS - audit completes"
+    echo "PASS - audit completes"
 else
-    echo "Test #2: FAIL - audit completion message not found"
+    echo "FAIL - audit completion message not found"
     cat "$OUTPUT"
     exit 1
 fi
 
 if grep -Fq "filesystem scan skipped in test mode" "$OUTPUT"; then
-    echo "Test #3: PASS - filesystem scans are isolated from the CI host"
+    echo "PASS - filesystem scans are isolated from the CI host"
 else
-    echo "Test #3: FAIL - safe filesystem test mode was not applied"
+    echo "FAIL - safe filesystem test mode was not applied"
     cat "$OUTPUT"
     exit 1
 fi

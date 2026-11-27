@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include "rules.h"
 #include "audit_utils.h"
+#define printf audit_printf
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096

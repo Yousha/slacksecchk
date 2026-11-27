@@ -15,6 +15,65 @@
 #include <signal.h>
 #include <time.h>
 #include <poll.h>
+#include <stdarg.h>
+
+static int audit_color_mode = AUDIT_COLOR_AUTO;
+
+void audit_set_color_mode(int mode) {
+    if (mode >= AUDIT_COLOR_AUTO && mode <= AUDIT_COLOR_NEVER)
+        audit_color_mode = mode;
+}
+
+int audit_color_enabled(void) {
+    if (audit_color_mode == AUDIT_COLOR_ALWAYS)
+        return 1;
+    if (audit_color_mode == AUDIT_COLOR_NEVER || getenv("NO_COLOR") != NULL)
+        return 0;
+    const char *term = getenv("TERM");
+    return isatty(STDOUT_FILENO) && (term == NULL || strcmp(term, "dumb") != 0);
+}
+
+int audit_printf(const char *format, ...) {
+    if (format == NULL)
+        return -1;
+
+    va_list args;
+    va_start(args, format);
+    if (audit_color_enabled()) {
+        int result = vfprintf(stdout, format, args);
+        va_end(args);
+        return result;
+    }
+
+    size_t length = strlen(format);
+    char *plain = malloc(length + 1);
+    if (plain == NULL) {
+        va_end(args);
+        return -1;
+    }
+
+    size_t source = 0;
+    size_t target = 0;
+    while (source < length) {
+        if ((unsigned char)format[source] == 0x1b &&
+            source + 1 < length && format[source + 1] == '[') {
+            source += 2;
+            while (source < length &&
+                   !((unsigned char)format[source] >= 0x40 &&
+                     (unsigned char)format[source] <= 0x7e))
+                source++;
+            if (source < length)
+                source++;
+            continue;
+        }
+        plain[target++] = format[source++];
+    }
+    plain[target] = '\0';
+    int result = vfprintf(stdout, plain, args);
+    free(plain);
+    va_end(args);
+    return result;
+}
 
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')

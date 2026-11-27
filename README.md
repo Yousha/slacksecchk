@@ -56,6 +56,18 @@ Useful Make targets:
 | `sudo make install` | Install to `/usr/local/bin/slacksecchk` (requires root privileges). |
 | `sudo make uninstall` | Remove the installed executable (requires root privileges). |
 
+## Command-line options
+
+| Option | Description |
+| --- | --- |
+| `-h`, `--help` | Display command-line help and exit. |
+| `-V`, `--version` | Display the application version and exit. |
+| `--color=auto` | Enable colors only when standard output is a suitable terminal. |
+| `--color=always` | Force ANSI colors, including when output is redirected. |
+| `--color=never`, `--no-color` | Disable ANSI colors. |
+
+Automatic color detection also respects `NO_COLOR` and `TERM=dumb`. Unknown options print usage information and return exit code `2`.
+
 ## Usage
 
 Run the executable from the repository:
