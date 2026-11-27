@@ -12,15 +12,6 @@ if [[ ! -x "$BINARY" ]]; then
     exit 2
 fi
 
-# The audit performs recursive scans of the host filesystem. Stub find in this
-# smoke test so CI verifies startup and completion without auditing the runner.
-mkdir -p "$TEST_DIR/bin"
-cat > "$TEST_DIR/bin/find" <<'EOF'
-#!/usr/bin/env sh
-exit 0
-EOF
-chmod +x "$TEST_DIR/bin/find"
-
 echo "Running SlackSecChk smoke tests..."
 
 if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
