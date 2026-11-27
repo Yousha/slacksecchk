@@ -1,7 +1,9 @@
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <time.h>
@@ -34,12 +36,11 @@ void check_file_permissions(const char *filename, mode_t expected_mode) {
    }
 }
 
-void check_log_files() {
+void check_log_files(void) {
    check_file_permissions("/var/log/messages", 0600);
    check_file_permissions("/var/log/secure", 0600);
    check_file_permissions("/var/log/maillog", 0600);
-   check_file_permissions("/var/log/syslog", 0644);
-   check_file_permissions("/var/log/messages", 0644);
+   check_file_permissions("/var/log/syslog", 0640);
 }
 
 void check_password_policy() {
@@ -91,13 +92,29 @@ void check_user_password_expiration() {
    (void)system("chage -l root | grep -E 'Password expires|Account expires' || echo '" COLOR_RED "FAILED! Could not verify password expiration for root." COLOR_RESET "'");
 }
 
-void check_firewall_rules() {
-   printf("\n[CIS] Checking firewall is configured... ");
-   if (system("iptables -L > /dev/null 2>&1") != 0) {
-      printf(COLOR_RED "FAILED! iptables not configured or inactive.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_firewall_rules(void) {
+   printf("\n[CIS] Checking firewall configuration... ");
+   FILE *fp = popen("iptables-save 2>/dev/null", "r");
+   if (!fp) {
+      printf(COLOR_YELLOW "Notice: iptables state unavailable; firewall is unverified.\n" COLOR_RESET);
+      return;
    }
+   char line[512];
+   int has_filter = 0, has_input_rule = 0;
+   while (fgets(line, sizeof(line), fp)) {
+      if (!strncmp(line, "*filter", 7)) has_filter = 1;
+      if (!strncmp(line, "-A INPUT ", 9) || !strncmp(line, "-A FORWARD ", 11))
+         has_input_rule = 1;
+   }
+   int status = pclose(fp);
+   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+      printf(COLOR_YELLOW "Notice: iptables query failed; firewall is unverified.\n" COLOR_RESET);
+   else if (!has_filter)
+      printf(COLOR_YELLOW "Notice: no filter table was returned.\n" COLOR_RESET);
+   else if (has_input_rule)
+      printf(COLOR_GREEN "PASSED! Input/forward filter rules are present.\n" COLOR_RESET);
+   else
+      printf(COLOR_RED "FAILED! No INPUT or FORWARD rules were found.\n" COLOR_RESET);
 }
 
 void check_auditd() {
@@ -218,31 +235,86 @@ void check_ssh_config() {
    }
 }
 
-void check_world_writable_files() {
-   printf("\n[CIS] Checking for world-writable files... ");
-   if (system("find / -xdev -type f -perm -0002 -print > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! World-writable files found on system.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+static int scan_permission_tree(const char *path, dev_t device, int scan_world_writable,
+                                int *matches, int *errors) {
+   struct stat st;
+   if (lstat(path, &st) != 0) { (*errors)++; return -1; }
+   if (st.st_dev != device || S_ISLNK(st.st_mode)) return 0;
+   if (S_ISREG(st.st_mode)) {
+      int match = scan_world_writable ? ((st.st_mode & S_IWOTH) != 0)
+                                     : ((st.st_mode & (S_ISUID | S_ISGID)) != 0);
+      if (match) { printf(COLOR_RED "  FAILED! %s\n" COLOR_RESET, path); (*matches)++; }
+      return 0;
    }
+   if (!S_ISDIR(st.st_mode)) return 0;
+   DIR *dir = opendir(path);
+   if (!dir) { (*errors)++; return -1; }
+   struct dirent *entry;
+   while ((entry = readdir(dir)) != NULL) {
+      if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+      char child[PATH_MAX];
+      int n = snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+      if (n < 0 || (size_t)n >= sizeof(child)) { (*errors)++; continue; }
+      scan_permission_tree(child, device, scan_world_writable, matches, errors);
+   }
+   if (closedir(dir) != 0) (*errors)++;
+   return 0;
 }
 
-void check_suid_sgid_files() {
-   printf("\n[CIS] Checking for SUID/SGID files... ");
-   if (system("find / -xdev \\( -perm -4000 -o -perm -2000 \\) -type f -print > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! SUID/SGID files found on system.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+static void run_permission_scan(const char *label, int world_writable) {
+   struct stat root;
+   int matches = 0, errors = 0;
+   printf("\n[CIS] Checking for %s...\n", label);
+   if (getenv("SLACKSECCHK_TEST_MODE") != NULL) {
+      printf(COLOR_YELLOW "Notice: filesystem scan skipped in test mode.\n" COLOR_RESET);
+      return;
    }
+   if (lstat("/", &root) != 0) {
+      printf(COLOR_YELLOW "Notice: filesystem root cannot be inspected.\n" COLOR_RESET);
+      return;
+   }
+   scan_permission_tree("/", root.st_dev, world_writable, &matches, &errors);
+   if (errors)
+      printf(COLOR_YELLOW "Notice: scan incomplete; %d filesystem error(s).\n" COLOR_RESET, errors);
+   else if (!matches)
+      printf(COLOR_GREEN "PASSED! No matching files found.\n" COLOR_RESET);
+   else
+      printf(COLOR_RED "FAILED! %d matching file(s) found.\n" COLOR_RESET, matches);
 }
 
-void check_empty_passwords() {
-   printf("\n[CIS] Checking for empty passwords... ");
-   if (system("grep '^\\+:' /etc/passwd > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! Accounts with empty passwords found.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_world_writable_files(void) {
+   run_permission_scan("world-writable files", 1);
+}
+
+void check_suid_sgid_files(void) {
+   run_permission_scan("SUID/SGID files", 0);
+}
+
+void check_empty_passwords(void) {
+   printf("\n[CIS] Checking for empty account password fields... ");
+   FILE *fp = fopen("/etc/shadow", "r");
+   if (!fp) {
+      printf(COLOR_YELLOW "Notice: cannot read /etc/shadow; result is unverified.\n" COLOR_RESET);
+      return;
    }
+   char line[1024];
+   int empty = 0, errors = 0;
+   while (fgets(line, sizeof(line), fp)) {
+      char *first = strchr(line, ':');
+      char *second = first ? strchr(first + 1, ':') : NULL;
+      if (!first || !second) { errors++; continue; }
+      if (second == first + 1) {
+         printf(COLOR_RED "FAILED! Empty password field for account '%.*s'.\n" COLOR_RESET,
+                (int)(first - line), line);
+         empty++;
+      }
+   }
+   if (ferror(fp)) errors++;
+   fclose(fp);
+   if (errors)
+      printf(COLOR_YELLOW "Notice: %d malformed/unreadable shadow record(s).\n" COLOR_RESET, errors);
+   else if (!empty)
+      printf(COLOR_GREEN "PASSED! No empty password fields found.\n" COLOR_RESET);
 }
 
 void check_unused_kernel_modules() {
@@ -289,13 +361,34 @@ void check_password_reuse_policy() {
    }
 }
 
-void check_cron_jobs() {
-   printf("\n[CIS] Checking for unnecessary CRON jobs... ");
-   if (system("find /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly -type f -exec grep -v '^#' {} \\; > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! Unnecessary CRON jobs found.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_cron_jobs(void) {
+   const char *dirs[] = {"/etc/cron.d", "/etc/cron.daily", "/etc/cron.hourly",
+                         "/etc/cron.monthly", "/etc/cron.weekly", NULL};
+   int found = 0, errors = 0;
+   printf("\n[CIS] Reviewing scheduled cron jobs...\n");
+   for (int i = 0; dirs[i]; i++) {
+      DIR *dir = opendir(dirs[i]);
+      if (!dir) { if (errno != ENOENT) errors++; continue; }
+      struct dirent *entry;
+      while ((entry = readdir(dir)) != NULL) {
+         if (entry->d_name[0] == '.') continue;
+         char path[PATH_MAX];
+         int n = snprintf(path, sizeof(path), "%s/%s", dirs[i], entry->d_name);
+         struct stat st;
+         if (n < 0 || (size_t)n >= sizeof(path) || lstat(path, &st) != 0) { errors++; continue; }
+         if (S_ISREG(st.st_mode) && (st.st_mode & 0111)) {
+            printf("  Review scheduled executable: %s\n", path);
+            found++;
+         }
+      }
+      if (closedir(dir) != 0) errors++;
    }
+   if (errors)
+      printf(COLOR_YELLOW "Notice: cron inventory incomplete (%d error(s)).\n" COLOR_RESET, errors);
+   else if (found)
+      printf(COLOR_YELLOW "Notice: %d scheduled executable(s) require policy review.\n" COLOR_RESET, found);
+   else
+      printf(COLOR_GREEN "PASSED! No executable cron files found in standard directories.\n" COLOR_RESET);
 }
 
 void check_time_synchronization() {
@@ -340,13 +433,28 @@ void check_usb_storage() {
    }
 }
 
-void check_open_ports() {
-   printf("\n[CIS] Checking for open ports... ");
-   if (system("netstat -tuln | grep -E '0.0.0.0:|:::' > /dev/null 2>&1") == 0) {
-      printf(COLOR_RED "FAILED! Open ports found. Investigate unnecessary services.\n" COLOR_RESET);
-   } else {
-      printf(COLOR_GREEN "PASSED!\n" COLOR_RESET);
+void check_open_ports(void) {
+   printf("\n[CIS] Reviewing listening network sockets... ");
+   FILE *fp = popen("ss -H -tuln 2>/dev/null", "r");
+   if (!fp) {
+      printf(COLOR_YELLOW "Notice: unable to query listening sockets.\n" COLOR_RESET);
+      return;
    }
+   char line[512];
+   int count = 0;
+   while (fgets(line, sizeof(line), fp)) {
+      if (strstr(line, "0.0.0.0:") || strstr(line, "[::]:") || strstr(line, "*:")) {
+         printf("Review listener: %s", line);
+         count++;
+      }
+   }
+   int status = pclose(fp);
+   if (status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+      printf(COLOR_YELLOW "Notice: socket query failed; results may be incomplete.\n" COLOR_RESET);
+   else if (!count)
+      printf(COLOR_GREEN "PASSED! No wildcard-bound listeners were reported.\n" COLOR_RESET);
+   else
+      printf(COLOR_YELLOW "Notice: %d wildcard-bound listener(s) require policy review.\n" COLOR_RESET, count);
 }
 
 void check_bootloader_password() {

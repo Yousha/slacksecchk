@@ -7,6 +7,8 @@
 #include <time.h>
 #include <limits.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include "rules.h"
 
 #ifndef PATH_MAX
@@ -24,7 +26,13 @@ static int read_sysctl_int(const char *path, int *value) {
    char buf[64];
    if (!fgets(buf, sizeof(buf), f)) { fclose(f); return -1; }
    fclose(f);
-   *value = atoi(buf);
+   char *end = NULL;
+   errno = 0;
+   long parsed = strtol(buf, &end, 10);
+   if (errno != 0 || end == buf) return -1;
+   while (*end == ' ' || *end == '\\t' || *end == '\\r' || *end == '\\n') end++;
+   if (*end != '\\0' || parsed < INT_MIN || parsed > INT_MAX) return -1;
+   *value = (int)parsed;
    return 0;
 }
 
