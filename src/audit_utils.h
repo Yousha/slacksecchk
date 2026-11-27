@@ -47,6 +47,7 @@ int audit_hosts_deny_all(FILE *stream);
 #define AUDIT_COLOR_NEVER 2
 void audit_set_color_mode(int mode);
 int audit_color_enabled(void);
+int audit_printf(const char *format, ...);
 
 /* Default upper bound for commands invoked by audit checks. */
 #define AUDIT_COMMAND_DEFAULT_TIMEOUT_MS 30000U
