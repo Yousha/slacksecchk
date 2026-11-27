@@ -68,6 +68,18 @@ Useful Make targets:
 
 Automatic color detection also respects `NO_COLOR` and `TERM=dumb`. Unknown options print usage information and return exit code `2`.
 
+## Machine-readable output
+
+Use \`--format=json\` to emit a single JSON summary document instead of terminal text:
+
+\`\`\`bash
+sudo slacksecchk --format=json
+\`\`\`
+
+The document includes \`schema_version\`, \`tool\`, \`version\`, overall \`status\`, and \`summary\` counters for \`passed\`, \`failed\`, and \`unverified\`. In JSON mode, exit codes are \`0\` when no failed or unverified status markers were emitted, \`1\` when at least one failure was emitted, and \`2\` when checks were unverified but none failed. Invalid command-line options also return \`2\` and write the error to stderr.
+
+The counters represent result markers emitted by the current checks, not unique rule IDs or a complete benchmark finding inventory. Checks that do not emit one of the recognized result markers are not included in these counters. A future structured-finding interface is needed for per-rule IDs, evidence, and remediation data.
+
 ## Usage
 
 Run the executable from the repository:

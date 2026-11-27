@@ -33,12 +33,94 @@ int audit_color_enabled(void) {
     return isatty(STDOUT_FILENO) && (term == NULL || strcmp(term, "dumb") != 0);
 }
 
+static int audit_json_output = 0;
+static audit_summary_t audit_summary = {0, 0, 0};
+
+void audit_reset_summary(void) {
+    audit_summary.passed = 0;
+    audit_summary.failed = 0;
+    audit_summary.unverified = 0;
+}
+
+void audit_set_json_output(int enabled) {
+    audit_json_output = enabled != 0;
+}
+
+void audit_get_summary(audit_summary_t *summary) {
+    if (summary != NULL)
+        *summary = audit_summary;
+}
+
+int audit_summary_exit_code(void) {
+    if (audit_summary.failed != 0)
+        return 1;
+    if (audit_summary.unverified != 0)
+        return 2;
+    return 0;
+}
+
+static int audit_json_write_string(FILE *stream, const char *value) {
+    if (stream == NULL || value == NULL || fputc('"', stream) == EOF)
+        return -1;
+
+    for (const unsigned char *p = (const unsigned char *)value; *p != '\0'; p++) {
+        switch (*p) {
+            case '"': if (fputs("\\\"", stream) == EOF) return -1; break;
+            case '\\': if (fputs("\\\\", stream) == EOF) return -1; break;
+            case '\b': if (fputs("\\b", stream) == EOF) return -1; break;
+            case '\f': if (fputs("\\f", stream) == EOF) return -1; break;
+            case '\n': if (fputs("\\n", stream) == EOF) return -1; break;
+            case '\r': if (fputs("\\r", stream) == EOF) return -1; break;
+            case '\t': if (fputs("\\t", stream) == EOF) return -1; break;
+            default:
+                if (*p < 0x20) {
+                    if (fprintf(stream, "\\u%04x", (unsigned int)*p) < 0)
+                        return -1;
+                } else if (fputc(*p, stream) == EOF) {
+                    return -1;
+                }
+        }
+    }
+    return fputc('"', stream) == EOF ? -1 : 0;
+}
+
+int audit_write_json_summary(FILE *stream, const char *version) {
+    if (stream == NULL || version == NULL)
+        return -1;
+
+    const char *status = audit_summary.failed != 0 ? "failed" :
+                         audit_summary.unverified != 0 ? "unverified" : "passed";
+    if (fputs("{\"schema_version\":1,\"tool\":\"slacksecchk\",\"version\":", stream) == EOF ||
+        audit_json_write_string(stream, version) != 0)
+        return -1;
+    if (fprintf(stream,
+                ",\"status\":\"%s\",\"summary\":{\"passed\":%lu,\"failed\":%lu,\"unverified\":%lu}}\n",
+                status, audit_summary.passed, audit_summary.failed,
+                audit_summary.unverified) < 0)
+        return -1;
+    return 0;
+}
+
+static void audit_record_format(const char *format) {
+    if (strstr(format, "PASSED!") != NULL)
+        audit_summary.passed++;
+    if (strstr(format, "FAILED!") != NULL)
+        audit_summary.failed++;
+    if (strstr(format, "Notice:") != NULL || strstr(format, "Error:") != NULL)
+        audit_summary.unverified++;
+}
+
 int audit_printf(const char *format, ...) {
     if (format == NULL)
         return -1;
 
+    audit_record_format(format);
     va_list args;
     va_start(args, format);
+    if (audit_json_output) {
+        va_end(args);
+        return 0;
+    }
     if (audit_color_enabled()) {
         int result = vfprintf(stdout, format, args);
         va_end(args);

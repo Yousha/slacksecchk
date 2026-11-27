@@ -49,6 +49,19 @@ void audit_set_color_mode(int mode);
 int audit_color_enabled(void);
 int audit_printf(const char *format, ...);
 
+/* Summary counters represent emitted result markers, not unique rule IDs. */
+typedef struct {
+    unsigned long passed;
+    unsigned long failed;
+    unsigned long unverified;
+} audit_summary_t;
+
+void audit_reset_summary(void);
+void audit_set_json_output(int enabled);
+void audit_get_summary(audit_summary_t *summary);
+int audit_summary_exit_code(void);
+int audit_write_json_summary(FILE *stream, const char *version);
+
 /* Default upper bound for commands invoked by audit checks. */
 #define AUDIT_COMMAND_DEFAULT_TIMEOUT_MS 30000U
 

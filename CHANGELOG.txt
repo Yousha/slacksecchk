@@ -1,4 +1,8 @@
 slacksecchk 1.1.0.0 - 2026-11-28
+* Add --format=json for machine-readable audit summaries and automation-friendly exit codes.
+* Add summary counters for passed, failed, and unverified output markers, with JSON escaping and fixture-based tests.
+* Add smoke coverage for JSON output shape and exit status.
+slacksecchk 1.1.0.0 - 2026-11-28
 * Add help and version command-line options and reject unknown options with exit code 2.
 * Add automatic terminal color detection with NO_COLOR and TERM=dumb support.
 * Add --color=auto|always|never and --no-color options for predictable redirected output.
