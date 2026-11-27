@@ -20,12 +20,6 @@
 #define COLOR_RED "\033[1;31m"
 #define COLOR_RESET "\033[0m"
 
-static int is_executable(const char *path) {
-   struct stat st;
-   if (stat(path, &st) != 0) return 0;
-   return (st.st_mode & S_IXUSR) != 0;
-}
-
 void check_rc_d_enabled_services() {
    printf("\n[Slackware] Enumerating executable rc.d scripts...\n");
    DIR *dir = opendir("/etc/rc.d");
@@ -36,7 +30,7 @@ void check_rc_d_enabled_services() {
       if (strncmp(ent->d_name, "rc.", 3) != 0) continue;
       char path[PATH_MAX];
       snprintf(path, sizeof(path), "/etc/rc.d/%s", ent->d_name);
-      if (is_executable(path)) { printf("  [enabled] %s\n", ent->d_name); count++; }
+      if (audit_is_executable(path)) { printf("  [enabled] %s\n", ent->d_name); count++; }
    }
    closedir(dir);
    printf("  Total enabled rc scripts: %d\n", count);
@@ -49,7 +43,7 @@ void check_high_risk_rc_services() {
       char path[PATH_MAX];
       snprintf(path, sizeof(path), "/etc/rc.d/%s", risky[i]);
       if (access(path, F_OK) != 0) { printf("  %s: not present\n", risky[i]); continue; }
-      if (is_executable(path))
+      if (audit_is_executable(path))
          printf(COLOR_RED "  FAILED! %s is executable (enabled).\n" COLOR_RESET, risky[i]);
       else
          printf(COLOR_GREEN "  PASSED! %s is not executable.\n" COLOR_RESET, risky[i]);
