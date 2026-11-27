@@ -170,6 +170,49 @@ echo "Smoke tests passed."
 fi
 echo "Test #6: PASS - --no-color suppresses ANSI escapes"
 
+if ! SLACKSECCHK_TEST_MODE=1 "$BINARY" >"$OUTPUT" 2>&1; then
+    echo "Test #7: FAIL - automatic-color audit execution"
+    cat "$OUTPUT"
+    exit 1
+fi
+if grep -q 
+if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
+    echo "Test failed: the program returned a non-zero exit status."
+    cat "$OUTPUT"
+    exit 1
+fi
+
+if grep -Fq "Auditing system security" "$OUTPUT"; then
+    echo "Test #1: PASS - audit starts"
+else
+    echo "Test #1: FAIL - audit start message not found"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+if grep -Fq "Audit has finished" "$OUTPUT"; then
+    echo "Test #2: PASS - audit completes"
+else
+    echo "Test #2: FAIL - audit completion message not found"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+if grep -Fq "filesystem scan skipped in test mode" "$OUTPUT"; then
+    echo "Test #3: PASS - filesystem scans are isolated from the CI host"
+else
+    echo "Test #3: FAIL - safe filesystem test mode was not applied"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+echo "Smoke tests passed."
+\033' "$OUTPUT"; then
+    echo "Test #7: FAIL - automatic color emitted ANSI escapes to redirected output"
+    exit 1
+fi
+echo "Test #7: PASS - automatic color is disabled for redirected output"
+
 
 if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
     echo "Test failed: the program returned a non-zero exit status."
