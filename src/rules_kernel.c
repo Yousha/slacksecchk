@@ -43,6 +43,9 @@ void check_kernel_hardening_sysctls() {
       {"/proc/sys/fs/protected_hardlinks", 1, 1, "fs.protected_hardlinks"},
       {"/proc/sys/fs/protected_symlinks", 1, 1, "fs.protected_symlinks"},
       {"/proc/sys/kernel/randomize_va_space", 2, 2, "kernel.randomize_va_space"},
+      {"/proc/sys/kernel/unprivileged_bpf_disabled", 1, -1, "kernel.unprivileged_bpf_disabled"},
+      {"/proc/sys/kernel/perf_event_paranoid", 2, -1, "kernel.perf_event_paranoid"},
+      {"/proc/sys/net/core/bpf_jit_harden", 1, -1, "net.core.bpf_jit_harden"},
       {NULL, 0, 0, NULL}
    };
    for (int i = 0; c[i].path; i++) {
