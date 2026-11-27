@@ -10,15 +10,16 @@
 #include <errno.h>
 #include "rules.h"
 #include "audit_utils.h"
+#define printf audit_printf
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
 
-#define COLOR_GREEN (audit_color_enabled() ? "\033[1;32m" : "")
-#define COLOR_YELLOW (audit_color_enabled() ? "\033[1;33m" : "")
-#define COLOR_RED (audit_color_enabled() ? "\033[1;31m" : "")
-#define COLOR_RESET (audit_color_enabled() ? "\033[0m" : "")
+#define COLOR_GREEN "\033[1;32m"
+#define COLOR_YELLOW "\033[1;33m"
+#define COLOR_RED "\033[1;31m"
+#define COLOR_RESET "\033[0m"
 
 void check_x11_nolisten() {
    printf("\n[Slackware] Checking X11 -nolisten tcp...\n");
