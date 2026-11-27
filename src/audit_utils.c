@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "audit_utils.h"
 
 #include <ctype.h>
@@ -6,6 +7,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 int audit_has_mount_option(const char *options, const char *wanted) {
     if (options == NULL || wanted == NULL || wanted[0] == '\0')
@@ -200,4 +205,83 @@ int audit_is_executable(const char *path) {
     if (path == NULL || stat(path, &st) != 0)
         return 0;
     return (st.st_mode & S_IXUSR) != 0;
+}
+
+static int audit_wait_for_child(pid_t child) {
+    int status;
+    while (waitpid(child, &status, 0) < 0) {
+        if (errno == EINTR) continue;
+        return -1;
+    }
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return -1;
+}
+
+int audit_run_command(const char *const argv[], int suppress_output) {
+    if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0') return -1;
+    pid_t child = fork();
+    if (child < 0) return -1;
+    if (child == 0) {
+        if (suppress_output) {
+            int null_fd = open("/dev/null", O_WRONLY);
+            if (null_fd >= 0) {
+                (void)dup2(null_fd, STDOUT_FILENO);
+                (void)dup2(null_fd, STDERR_FILENO);
+                if (null_fd > STDERR_FILENO) close(null_fd);
+            }
+        }
+        if (setenv("PATH", "/usr/sbin:/usr/bin:/sbin:/bin", 1) != 0)
+            _exit(126);
+        execvp(argv[0], (char *const *)argv);
+        _exit(errno == ENOENT ? 127 : 126);
+    }
+    return audit_wait_for_child(child);
+}
+
+int audit_capture_command(const char *const argv[], char *output, size_t output_size) {
+    if (argv == NULL || argv[0] == NULL || argv[0][0] == '\0' ||
+        output == NULL || output_size == 0) return -1;
+    output[0] = '\0';
+    int fds[2];
+    if (pipe(fds) != 0) return -1;
+    pid_t child = fork();
+    if (child < 0) { close(fds[0]); close(fds[1]); return -1; }
+    if (child == 0) {
+        close(fds[0]);
+        if (dup2(fds[1], STDOUT_FILENO) < 0) _exit(126);
+        close(fds[1]);
+        int null_fd = open("/dev/null", O_WRONLY);
+        if (null_fd >= 0) {
+            (void)dup2(null_fd, STDERR_FILENO);
+            if (null_fd > STDERR_FILENO) close(null_fd);
+        }
+        if (setenv("PATH", "/usr/sbin:/usr/bin:/sbin:/bin", 1) != 0)
+            _exit(126);
+        execvp(argv[0], (char *const *)argv);
+        _exit(errno == ENOENT ? 127 : 126);
+    }
+    close(fds[1]);
+    size_t used = 0;
+    int truncated = 0, read_error = 0;
+    char chunk[4096];
+    for (;;) {
+        ssize_t count = read(fds[0], chunk, sizeof(chunk));
+        if (count == 0) break;
+        if (count < 0) {
+            if (errno == EINTR) continue;
+            read_error = 1;
+            break;
+        }
+        size_t available = output_size - 1 - used;
+        size_t copy_count = (size_t)count < available ? (size_t)count : available;
+        if (copy_count) { memcpy(output + used, chunk, copy_count); used += copy_count; }
+        if (copy_count < (size_t)count) truncated = 1;
+    }
+    close(fds[0]);
+    output[used] = '\0';
+    int status = audit_wait_for_child(child);
+    if (read_error || status < 0) return -1;
+    if (truncated) return -2;
+    return status;
 }

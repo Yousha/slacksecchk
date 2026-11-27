@@ -192,7 +192,48 @@ static void test_overlong_config_line(void) {
     if (modules) fclose(modules);
 }
 
+
+static void test_safe_command_execution(void) {
+    /* Arrange */
+    char marker[] = "/tmp/slacksecchk-shell-injection-XXXXXX";
+    int marker_fd = mkstemp(marker);
+    ASSERT_TRUE(marker_fd >= 0);
+    if (marker_fd >= 0) close(marker_fd);
+    ASSERT_TRUE(unlink(marker) == 0);
+    char payload[256];
+    snprintf(payload, sizeof(payload), "literal;$(touch %s)", marker);
+    const char *true_argv[] = {"true", NULL};
+    const char *capture_true_argv[] = {"true", NULL};
+    const char *false_argv[] = {"/bin/false", NULL};
+    const char *missing_argv[] = {"/definitely/not/a/real/command", NULL};
+    const char *print_argv[] = {"/bin/printf", "%s", payload, NULL};
+    const char *large_argv[] = {"/usr/bin/seq", "1", "1000", NULL};
+    char output[128];
+    char *old_path = getenv("PATH") ? strdup(getenv("PATH")) : NULL;
+
+    /* Act / Assert */
+    ASSERT_TRUE(setenv("PATH", "/tmp/slacksecchk-no-such-path", 1) == 0);
+    ASSERT_TRUE(audit_run_command(true_argv, 1) == 0);
+    ASSERT_TRUE(audit_capture_command(capture_true_argv, output, sizeof(output)) == 0);
+    if (old_path != NULL) {
+        ASSERT_TRUE(setenv("PATH", old_path, 1) == 0);
+        free(old_path);
+    } else {
+        ASSERT_TRUE(unsetenv("PATH") == 0);
+    }
+    ASSERT_TRUE(audit_run_command(false_argv, 1) == 1);
+    ASSERT_TRUE(audit_run_command(missing_argv, 1) == 127);
+    ASSERT_TRUE(audit_capture_command(print_argv, output, sizeof(output)) == 0);
+    ASSERT_TRUE(strcmp(output, payload) == 0);
+    ASSERT_TRUE(access(marker, F_OK) != 0);
+    ASSERT_TRUE(audit_capture_command(large_argv, output, sizeof(output)) == -2);
+    ASSERT_TRUE(audit_run_command(NULL, 1) == -1);
+    ASSERT_TRUE(audit_capture_command(true_argv, NULL, sizeof(output)) == -1);
+    unlink(marker);
+}
+
 int main(void) {
+    test_safe_command_execution();
     test_executable_detection();
     test_mount_options();
     test_integer_parsing();

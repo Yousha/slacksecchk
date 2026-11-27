@@ -41,4 +41,9 @@ int audit_config_has_directive(FILE *stream, const char *directive, int require_
 /* Return 1 for an exact "ALL: ALL" hosts.deny rule, 0 when absent, -1 on read error. */
 int audit_hosts_deny_all(FILE *stream);
 
+/* Run argv directly without a shell. Return child exit code or -1 on error. */
+int audit_run_command(const char *const argv[], int suppress_output);
+/* Capture stdout. Return exit code, -1 on error, or -2 when output is truncated. */
+int audit_capture_command(const char *const argv[], char *output, size_t output_size);
+
 #endif
