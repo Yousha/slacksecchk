@@ -23,7 +23,7 @@ chmod +x "$TEST_DIR/bin/find"
 
 echo "Running SlackSecChk smoke tests..."
 
-if ! PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
+if ! SLACKSECCHK_TEST_MODE=1 PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
     echo "Test failed: the program returned a non-zero exit status."
     cat "$OUTPUT"
     exit 1
@@ -41,6 +41,14 @@ if grep -Fq "Audit has finished" "$OUTPUT"; then
     echo "Test #2: PASS - audit completes"
 else
     echo "Test #2: FAIL - audit completion message not found"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+if grep -Fq "filesystem scan skipped in test mode" "$OUTPUT"; then
+    echo "Test #3: PASS - filesystem scans are isolated from the CI host"
+else
+    echo "Test #3: FAIL - safe filesystem test mode was not applied"
     cat "$OUTPUT"
     exit 1
 fi
