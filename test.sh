@@ -1,38 +1,48 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Enable strict mode: Abort on errors, unset variables, and pipe failures.
-set -o nounset  # Exit if an unbound variable is used.
-set -o errexit  # Exit if any command fails.
-set -o pipefail # Fail pipelines if any command in the pipeline fails.
+set -euo pipefail
 
-# Environment / locale settings.
-LANG=C
-LC_ALL=C
-EXIT_CODE=0
+BINARY="./artifacts/slacksecchk"
+TEST_DIR="$(mktemp -d)"
+OUTPUT="$TEST_DIR/output.txt"
+trap 'rm -rf "$TEST_DIR"' EXIT
 
-# Build the program.
-make clean
-make
-
-# Run the program.
-echo "Testing..."
-rm -f ./test_output.txt
-./artifacts/slacksecchk > test_output.txt
-
-if grep -q "Auditing system security" test_output.txt; then
-   echo "Test #1: PASS!"
-else
-   EXIT_CODE=1
-   echo "Test #1: FAIL!"
+if [[ ! -x "$BINARY" ]]; then
+    echo "Test setup error: $BINARY is missing or not executable. Run 'make' first." >&2
+    exit 2
 fi
 
-if grep -q "Audit has finished" test_output.txt; then
-   echo "Test #2: PASS!"
-else
-   EXIT_CODE=1
-   echo "Test #2: FAIL!"
+# The audit performs recursive scans of the host filesystem. Stub find in this
+# smoke test so CI verifies startup and completion without auditing the runner.
+mkdir -p "$TEST_DIR/bin"
+cat > "$TEST_DIR/bin/find" <<'EOF'
+#!/usr/bin/env sh
+exit 0
+EOF
+chmod +x "$TEST_DIR/bin/find"
+
+echo "Running SlackSecChk smoke tests..."
+
+if ! PATH="$TEST_DIR/bin:$PATH" "$BINARY" >"$OUTPUT" 2>&1; then
+    echo "Test failed: the program returned a non-zero exit status."
+    cat "$OUTPUT"
+    exit 1
 fi
 
-rm -f ./test_output.txt
-echo "Test finished."
-exit $EXIT_CODE
+if grep -Fq "Auditing system security" "$OUTPUT"; then
+    echo "Test #1: PASS - audit starts"
+else
+    echo "Test #1: FAIL - audit start message not found"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+if grep -Fq "Audit has finished" "$OUTPUT"; then
+    echo "Test #2: PASS - audit completes"
+else
+    echo "Test #2: FAIL - audit completion message not found"
+    cat "$OUTPUT"
+    exit 1
+fi
+
+echo "Smoke tests passed."
