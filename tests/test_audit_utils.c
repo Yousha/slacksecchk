@@ -169,19 +169,24 @@ static void test_hosts_deny_parser(void) {
 
 static void test_overlong_config_line(void) {
     /* Arrange */
-    char contents[80];
+    char contents[1200];
     memset(contents, 'x', sizeof(contents) - 2);
     contents[sizeof(contents) - 2] = '\n';
     contents[sizeof(contents) - 1] = '\0';
     FILE *stream = fixture_stream(contents);
+    FILE *shadow = fixture_stream(contents);
+    FILE *modules = fixture_stream(contents);
     char line[16];
 
     /* Act / Assert */
-    ASSERT_TRUE(stream != NULL);
-    ASSERT_TRUE(audit_read_config_line(stream, line, sizeof(line)) == -2);
+    ASSERT_TRUE(stream != NULL && audit_read_config_line(stream, line, sizeof(line)) == -2);
+    ASSERT_TRUE(shadow != NULL && audit_shadow_has_empty_password(shadow) == -1);
+    ASSERT_TRUE(modules != NULL && audit_module_is_loaded(modules, "not-a-module") == -1);
 
     /* Cleanup */
     if (stream) fclose(stream);
+    if (shadow) fclose(shadow);
+    if (modules) fclose(modules);
 }
 
 int main(void) {
