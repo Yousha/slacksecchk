@@ -1,5 +1,6 @@
 slacksecchk 1.1.0.0 - 2026-11-27
 -------------------------
+* Replace expanded-check stubs with full implementations for all 9 Slackware audit categories.
 * Major expansion of Slackware-specific security audits.
 * Package surface: slackpkg presence/config, package DB age, packages dir permissions.
 * rc.d model: enumerate enabled scripts, high-risk services, script permissions, rc.local/rc.M review.
