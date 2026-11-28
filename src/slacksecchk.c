@@ -34,7 +34,8 @@ static void print_usage(FILE *stream) {
       "      --color=MODE     Color mode: auto, always, or never.\n"
       "      --no-color       Disable colored output.\n"
       "      --format=text    Human-readable output (default).\n"
-      "      --format=json    Emit a machine-readable JSON summary.\n");
+      "      --format=json    Emit a machine-readable JSON summary.\n"
+      "      --format=sarif   Emit a SARIF 2.1.0 report.\n");
 }
 
 /**
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
    int show_help = 0;
    int show_version = 0;
    int color_mode = AUDIT_COLOR_AUTO;
-   int json_output = 0;
+   int output_format = 0; /* 0=text, 1=JSON, 2=SARIF */
 
    for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -60,9 +61,11 @@ int main(int argc, char *argv[]) {
       } else if (strcmp(argv[i], "--color=auto") == 0) {
          color_mode = AUDIT_COLOR_AUTO;
       } else if (strcmp(argv[i], "--format=json") == 0) {
-         json_output = 1;
+         output_format = 1;
+      } else if (strcmp(argv[i], "--format=sarif") == 0) {
+         output_format = 2;
       } else if (strcmp(argv[i], "--format=text") == 0) {
-         json_output = 0;
+         output_format = 0;
       } else {
          fprintf(stderr, "slacksecchk: unknown option: %s\n", argv[i]);
          print_usage(stderr);
@@ -79,7 +82,7 @@ int main(int argc, char *argv[]) {
       return 0;
    }
    audit_reset_summary();
-   audit_set_json_output(json_output);
+   audit_set_json_output(output_format != 0);
    audit_set_color_mode(color_mode);
    printf("\n");
    printf("slacksecchk %s\n", SLACKSECCHK_VERSION);
@@ -243,8 +246,13 @@ int main(int argc, char *argv[]) {
    check_issue_files();
    audit_set_current_rule("SSC-LEGACY-TRUST-FILES", "system");
    check_legacy_trust_files();
-   if (json_output) {
+   if (output_format == 1) {
       if (audit_write_json_summary(stdout, SLACKSECCHK_VERSION) != 0)
+         return 2;
+      return audit_summary_exit_code();
+   }
+   if (output_format == 2) {
+      if (audit_write_sarif_report(stdout, SLACKSECCHK_VERSION) != 0)
          return 2;
       return audit_summary_exit_code();
    }

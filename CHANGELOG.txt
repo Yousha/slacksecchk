@@ -1,4 +1,8 @@
 slacksecchk 1.1.0.0 - 2026-11-28
+* Add SARIF 2.1.0 reporting with deduplicated rule metadata and severity mapping.
+* Add --format=sarif for CI and code-scanning integrations while retaining JSON and text output.
+* Add unit and smoke tests for SARIF result filtering, levels, metadata, and report structure.
+slacksecchk 1.1.0.0 - 2026-11-28
 * Add a structured finding model with stable rule IDs, severity, category, status, evidence, remediation, and references.
 * Replace marker-based summary counting with counters derived from structured findings.
 * Extend JSON output to schema version 2 with a complete findings array.

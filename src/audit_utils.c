@@ -227,6 +227,116 @@ int audit_write_json_summary(FILE *stream, const char *version) {
     return fputs("]}\n", stream) == EOF ? -1 : 0;
 }
 
+static const char *audit_sarif_level(const char *severity) {
+    if (strcmp(severity, AUDIT_SEVERITY_CRITICAL) == 0 ||
+        strcmp(severity, AUDIT_SEVERITY_HIGH) == 0)
+        return "error";
+    if (strcmp(severity, AUDIT_SEVERITY_MEDIUM) == 0 ||
+        strcmp(severity, AUDIT_SEVERITY_LOW) == 0)
+        return "warning";
+    return "note";
+}
+
+static int audit_sarif_status_reportable(const char *status) {
+    return strcmp(status, AUDIT_STATUS_FAIL) == 0 ||
+           strcmp(status, AUDIT_STATUS_WARN) == 0 ||
+           strcmp(status, AUDIT_STATUS_ERROR) == 0 ||
+           strcmp(status, AUDIT_STATUS_INFO) == 0;
+}
+
+static int audit_sarif_rule_seen(size_t before, const char *rule_id) {
+    for (size_t i = 0; i < before; i++) {
+        if (strcmp(audit_findings[i].rule_id, rule_id) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+static int audit_sarif_write_rule(FILE *stream, const audit_finding_t *finding) {
+    if (fputs("{\"id\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->rule_id) != 0 ||
+        fputs(",\"name\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->title) != 0 ||
+        fputs(",\"shortDescription\":{\"text\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->description) != 0 ||
+        fputs("},\"properties\":{\"category\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->category) != 0 ||
+        fputs(",\"defaultSeverity\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->severity) != 0 ||
+        fputs("}}", stream) == EOF)
+        return -1;
+    return 0;
+}
+
+static int audit_sarif_write_result(FILE *stream, const audit_finding_t *finding) {
+    const char *message = finding->description[0] != '\0' ?
+                          finding->description : finding->title;
+    if (fputs("{\"ruleId\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->rule_id) != 0 ||
+        fputs(",\"level\":", stream) == EOF ||
+        audit_json_write_string(stream, audit_sarif_level(finding->severity)) != 0 ||
+        fputs(",\"message\":{\"text\":", stream) == EOF ||
+        audit_json_write_string(stream, message) != 0 ||
+        fputs("},\"properties\":{\"status\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->status) != 0 ||
+        fputs(",\"severity\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->severity) != 0 ||
+        fputs(",\"category\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->category) != 0 ||
+        fputs(",\"evidence\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->evidence) != 0 ||
+        fputs(",\"remediation\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->remediation) != 0 ||
+        fputs(",\"references\":", stream) == EOF ||
+        audit_json_write_string(stream, finding->references) != 0 ||
+        fputs("}}", stream) == EOF)
+        return -1;
+    return 0;
+}
+
+int audit_write_sarif_report(FILE *stream, const char *version) {
+    if (stream == NULL || version == NULL)
+        return -1;
+
+    if (fputs("{\"$schema\":\"https://json.schemastore.org/sarif-2.1.0.json\","
+              "\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{"
+              "\"name\":\"SlackSecChk\",\"version\":", stream) == EOF ||
+        audit_json_write_string(stream, version) != 0 ||
+        fputs(",\"informationUri\":\"https://github.com/Yousha/slacksecchk\","
+              "\"rules\":[", stream) == EOF)
+        return -1;
+
+    int first = 1;
+    for (size_t i = 0; i < audit_findings_count; i++) {
+        if (audit_sarif_rule_seen(i, audit_findings[i].rule_id))
+            continue;
+        if ((!first && fputc(',', stream) == EOF) ||
+            audit_sarif_write_rule(stream, &audit_findings[i]) != 0)
+            return -1;
+        first = 0;
+    }
+
+    if (fputs("]}},\"results\":[", stream) == EOF)
+        return -1;
+    first = 1;
+    for (size_t i = 0; i < audit_findings_count; i++) {
+        if (!audit_sarif_status_reportable(audit_findings[i].status))
+            continue;
+        if ((!first && fputc(',', stream) == EOF) ||
+            audit_sarif_write_result(stream, &audit_findings[i]) != 0)
+            return -1;
+        first = 0;
+    }
+
+    if (fprintf(stream,
+                "],\"properties\":{\"summary\":{\"passed\":%lu,\"failed\":%lu,"
+                "\"unverified\":%lu}}}]}\n",
+                audit_summary.passed, audit_summary.failed,
+                audit_summary.unverified) < 0)
+        return -1;
+    return 0;
+}
+
 /* Compatibility adapter: existing rule output is converted into structured findings. */
 static void audit_record_legacy_output(const char *message) {
     if (message == NULL)
